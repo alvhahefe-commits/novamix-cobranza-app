@@ -75,11 +75,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "NOVAMIX — Gestión y Cobranza" },
       { name: "description", content: "Gestión de clientes, cobranzas, entregas y pagos para NOVAMIX." },
       { name: "theme-color", content: "#000000" },
-      { property: "og:title", content: "NOVAMIX" },
-      { property: "og:description", content: "App de gestión de clientes, cobranzas y entregas." },
+      { property: "og:title", content: "NOVAMIX — Gestión y Cobranza" },
+      { property: "og:description", content: "Gestión de clientes, cobranzas, entregas y pagos para NOVAMIX." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "NOVAMIX — Gestión y Cobranza" },
+      { name: "twitter:description", content: "Gestión de clientes, cobranzas, entregas y pagos para NOVAMIX." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/hzPtzvwlXSNEFenbqrrKZS4TwzG3/social-images/social-1778801654817-6.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/hzPtzvwlXSNEFenbqrrKZS4TwzG3/social-images/social-1778801654817-6.webp" },
     ],
     links: [
       {
