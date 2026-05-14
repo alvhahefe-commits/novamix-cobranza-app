@@ -9,38 +9,141 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppReportesRouteImport } from './routes/_app/reportes'
+import { Route as AppEntregasRouteImport } from './routes/_app/entregas'
+import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppClientesRouteImport } from './routes/_app/clientes'
+import { Route as AppReciboPagoIdRouteImport } from './routes/_app/recibo.$pagoId'
+import { Route as AppPagoClienteIdRouteImport } from './routes/_app/pago.$clienteId'
+import { Route as AppClientesIdRouteImport } from './routes/_app/clientes.$id'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppReportesRoute = AppReportesRouteImport.update({
+  id: '/reportes',
+  path: '/reportes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEntregasRoute = AppEntregasRouteImport.update({
+  id: '/entregas',
+  path: '/entregas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClientesRoute = AppClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReciboPagoIdRoute = AppReciboPagoIdRouteImport.update({
+  id: '/recibo/$pagoId',
+  path: '/recibo/$pagoId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPagoClienteIdRoute = AppPagoClienteIdRouteImport.update({
+  id: '/pago/$clienteId',
+  path: '/pago/$clienteId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClientesIdRoute = AppClientesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppClientesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clientes': typeof AppClientesRouteWithChildren
+  '/dashboard': typeof AppDashboardRoute
+  '/entregas': typeof AppEntregasRoute
+  '/reportes': typeof AppReportesRoute
+  '/clientes/$id': typeof AppClientesIdRoute
+  '/pago/$clienteId': typeof AppPagoClienteIdRoute
+  '/recibo/$pagoId': typeof AppReciboPagoIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clientes': typeof AppClientesRouteWithChildren
+  '/dashboard': typeof AppDashboardRoute
+  '/entregas': typeof AppEntregasRoute
+  '/reportes': typeof AppReportesRoute
+  '/clientes/$id': typeof AppClientesIdRoute
+  '/pago/$clienteId': typeof AppPagoClienteIdRoute
+  '/recibo/$pagoId': typeof AppReciboPagoIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_app/clientes': typeof AppClientesRouteWithChildren
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/entregas': typeof AppEntregasRoute
+  '/_app/reportes': typeof AppReportesRoute
+  '/_app/clientes/$id': typeof AppClientesIdRoute
+  '/_app/pago/$clienteId': typeof AppPagoClienteIdRoute
+  '/_app/recibo/$pagoId': typeof AppReciboPagoIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/clientes'
+    | '/dashboard'
+    | '/entregas'
+    | '/reportes'
+    | '/clientes/$id'
+    | '/pago/$clienteId'
+    | '/recibo/$pagoId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/clientes'
+    | '/dashboard'
+    | '/entregas'
+    | '/reportes'
+    | '/clientes/$id'
+    | '/pago/$clienteId'
+    | '/recibo/$pagoId'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/_app/clientes'
+    | '/_app/dashboard'
+    | '/_app/entregas'
+    | '/_app/reportes'
+    | '/_app/clientes/$id'
+    | '/_app/pago/$clienteId'
+    | '/_app/recibo/$pagoId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +151,104 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/reportes': {
+      id: '/_app/reportes'
+      path: '/reportes'
+      fullPath: '/reportes'
+      preLoaderRoute: typeof AppReportesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/entregas': {
+      id: '/_app/entregas'
+      path: '/entregas'
+      fullPath: '/entregas'
+      preLoaderRoute: typeof AppEntregasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clientes': {
+      id: '/_app/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof AppClientesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/recibo/$pagoId': {
+      id: '/_app/recibo/$pagoId'
+      path: '/recibo/$pagoId'
+      fullPath: '/recibo/$pagoId'
+      preLoaderRoute: typeof AppReciboPagoIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pago/$clienteId': {
+      id: '/_app/pago/$clienteId'
+      path: '/pago/$clienteId'
+      fullPath: '/pago/$clienteId'
+      preLoaderRoute: typeof AppPagoClienteIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clientes/$id': {
+      id: '/_app/clientes/$id'
+      path: '/$id'
+      fullPath: '/clientes/$id'
+      preLoaderRoute: typeof AppClientesIdRouteImport
+      parentRoute: typeof AppClientesRoute
+    }
   }
 }
 
+interface AppClientesRouteChildren {
+  AppClientesIdRoute: typeof AppClientesIdRoute
+}
+
+const AppClientesRouteChildren: AppClientesRouteChildren = {
+  AppClientesIdRoute: AppClientesIdRoute,
+}
+
+const AppClientesRouteWithChildren = AppClientesRoute._addFileChildren(
+  AppClientesRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppClientesRoute: typeof AppClientesRouteWithChildren
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppEntregasRoute: typeof AppEntregasRoute
+  AppReportesRoute: typeof AppReportesRoute
+  AppPagoClienteIdRoute: typeof AppPagoClienteIdRoute
+  AppReciboPagoIdRoute: typeof AppReciboPagoIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppClientesRoute: AppClientesRouteWithChildren,
+  AppDashboardRoute: AppDashboardRoute,
+  AppEntregasRoute: AppEntregasRoute,
+  AppReportesRoute: AppReportesRoute,
+  AppPagoClienteIdRoute: AppPagoClienteIdRoute,
+  AppReciboPagoIdRoute: AppReciboPagoIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
