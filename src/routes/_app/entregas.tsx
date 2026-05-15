@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, fmtMoney, fmtDate, api, type Entrega } from "@/lib/store";
+import { useDB, fmtMoney, fmtDate, useApi, type Entrega } from "@/lib/store";
 import { Plus, X, Truck, Check, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/_app/entregas")({
@@ -16,6 +16,7 @@ const tabs: { key: "Todas" | Entrega["estado"]; label: string }[] = [
 
 function EntregasScreen() {
   const db = useDB();
+  const api = useApi();
   const [tab, setTab] = useState<(typeof tabs)[number]["key"]>("Todas");
   const [open, setOpen] = useState(false);
 
@@ -112,26 +113,31 @@ function EstadoBadge({ estado }: { estado: Entrega["estado"] }) {
 
 function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
   const db = useDB();
+  const api = useApi();
   const [clienteId, setClienteId] = useState(db.clientes[0]?.id ?? "");
   const [producto, setProducto] = useState("");
   const [cantidad, setCantidad] = useState("1");
   const [monto, setMonto] = useState("");
   const [dias, setDias] = useState("15");
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const m = parseFloat(monto);
     if (!clienteId || !producto.trim() || !m) return;
     const d = parseInt(dias) || 0;
-    api.addEntrega({
-      clienteId,
-      producto: producto.trim(),
-      cantidad: parseInt(cantidad) || 1,
-      monto: m,
-      estado: "Pendiente",
-      fechaVencimiento: Date.now() + d * 86400000,
-    });
-    onClose();
+    try {
+      await api.addEntrega({
+        clienteId,
+        producto: producto.trim(),
+        cantidad: parseInt(cantidad) || 1,
+        monto: m,
+        estado: "Pendiente",
+        fechaVencimiento: Date.now() + d * 86400000,
+      });
+      onClose();
+    } catch (e: any) {
+      alert(e?.message || "Error al guardar");
+    }
   };
 
   return (
