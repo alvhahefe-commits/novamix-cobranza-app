@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppReportesRouteImport } from './routes/_app/reportes'
 import { Route as AppEntregasRouteImport } from './routes/_app/entregas'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppCobrarRouteImport } from './routes/_app/cobrar'
 import { Route as AppClientesRouteImport } from './routes/_app/clientes'
 import { Route as AppReciboPagoIdRouteImport } from './routes/_app/recibo.$pagoId'
 import { Route as AppPagoClienteIdRouteImport } from './routes/_app/pago.$clienteId'
@@ -43,6 +44,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCobrarRoute = AppCobrarRouteImport.update({
+  id: '/cobrar',
+  path: '/cobrar',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClientesRoute = AppClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
@@ -67,6 +73,7 @@ const AppClientesIdRoute = AppClientesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clientes': typeof AppClientesRouteWithChildren
+  '/cobrar': typeof AppCobrarRoute
   '/dashboard': typeof AppDashboardRoute
   '/entregas': typeof AppEntregasRoute
   '/reportes': typeof AppReportesRoute
@@ -77,6 +84,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/clientes': typeof AppClientesRouteWithChildren
+  '/cobrar': typeof AppCobrarRoute
   '/dashboard': typeof AppDashboardRoute
   '/entregas': typeof AppEntregasRoute
   '/reportes': typeof AppReportesRoute
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_app/clientes': typeof AppClientesRouteWithChildren
+  '/_app/cobrar': typeof AppCobrarRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/entregas': typeof AppEntregasRoute
   '/_app/reportes': typeof AppReportesRoute
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/clientes'
+    | '/cobrar'
     | '/dashboard'
     | '/entregas'
     | '/reportes'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/clientes'
+    | '/cobrar'
     | '/dashboard'
     | '/entregas'
     | '/reportes'
@@ -122,6 +133,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/_app/clientes'
+    | '/_app/cobrar'
     | '/_app/dashboard'
     | '/_app/entregas'
     | '/_app/reportes'
@@ -172,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cobrar': {
+      id: '/_app/cobrar'
+      path: '/cobrar'
+      fullPath: '/cobrar'
+      preLoaderRoute: typeof AppCobrarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/clientes': {
       id: '/_app/clientes'
       path: '/clientes'
@@ -217,6 +236,7 @@ const AppClientesRouteWithChildren = AppClientesRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppClientesRoute: typeof AppClientesRouteWithChildren
+  AppCobrarRoute: typeof AppCobrarRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppEntregasRoute: typeof AppEntregasRoute
   AppReportesRoute: typeof AppReportesRoute
@@ -226,6 +246,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppClientesRoute: AppClientesRouteWithChildren,
+  AppCobrarRoute: AppCobrarRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppEntregasRoute: AppEntregasRoute,
   AppReportesRoute: AppReportesRoute,
@@ -242,3 +263,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
