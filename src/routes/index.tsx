@@ -15,7 +15,7 @@ function Login() {
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    if (db.auth.user) navigate({ to: "/dashboard" });
+    if (db.auth.user) navigate({ to: "/clientes" });
   }, [db.auth.user, navigate]);
 
   const submit = (e: React.FormEvent) => {
@@ -25,7 +25,7 @@ function Login() {
       return;
     }
     api.login(user.trim());
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/clientes" });
   };
 
   return (
