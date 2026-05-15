@@ -14,7 +14,204 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      customers: {
+        Row: {
+          address: string
+          created_at: string
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string
+          user_id: string
+        }
+        Insert: {
+          address?: string
+          created_at?: string
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      debts: {
+        Row: {
+          created_at: string
+          customer_id: string
+          due_date: string | null
+          id: string
+          notes: string | null
+          paid_amount: number
+          remaining_balance: number | null
+          status: Database["public"]["Enums"]["debt_status"]
+          total_amount: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          remaining_balance?: number | null
+          status?: Database["public"]["Enums"]["debt_status"]
+          total_amount?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          remaining_balance?: number | null
+          status?: Database["public"]["Enums"]["debt_status"]
+          total_amount?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deliveries: {
+        Row: {
+          created_at: string
+          customer_id: string
+          delivery_date: string
+          delivery_photo_url: string | null
+          due_date: string | null
+          id: string
+          product: string
+          quantity: number
+          status: Database["public"]["Enums"]["delivery_status"]
+          total_amount: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          delivery_date?: string
+          delivery_photo_url?: string | null
+          due_date?: string | null
+          id?: string
+          product: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["delivery_status"]
+          total_amount?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          delivery_date?: string
+          delivery_photo_url?: string | null
+          due_date?: string | null
+          id?: string
+          product?: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["delivery_status"]
+          total_amount?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_id: string
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          notes: string | null
+          payment_date: string
+          receipt_photo_url: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          customer_id: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          notes?: string | null
+          payment_date?: string
+          receipt_photo_url?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_id?: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          notes?: string | null
+          payment_date?: string
+          receipt_photo_url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          price: number
+          stock: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          price?: number
+          stock?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          stock?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +220,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      debt_status: "Pendiente" | "Parcial" | "Pagado" | "Vencido"
+      delivery_status: "Pendiente" | "En camino" | "Entregado"
+      payment_method: "Efectivo" | "Transferencia" | "Tarjeta" | "Otro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +349,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      debt_status: ["Pendiente", "Parcial", "Pagado", "Vencido"],
+      delivery_status: ["Pendiente", "En camino", "Entregado"],
+      payment_method: ["Efectivo", "Transferencia", "Tarjeta", "Otro"],
+    },
   },
 } as const
