@@ -1,31 +1,50 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useDB, api } from "@/lib/store";
-import { Lock, User } from "lucide-react";
+import { useApi, useAuth } from "@/lib/store";
+import { Lock, Mail, User } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Login,
 });
 
 function Login() {
-  const db = useDB();
+  const auth = useAuth();
+  const api = useApi();
   const navigate = useNavigate();
-  const [user, setUser] = useState("admin");
-  const [pass, setPass] = useState("1234");
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
+  const [info, setInfo] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (db.auth.user) navigate({ to: "/clientes" });
-  }, [db.auth.user, navigate]);
+    if (auth.user) navigate({ to: "/clientes" });
+  }, [auth.user, navigate]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user.trim() || !pass.trim()) {
-      setErr("Ingresa usuario y contraseña");
+    setErr("");
+    setInfo("");
+    if (!email.trim() || !pass.trim()) {
+      setErr("Ingresa correo y contraseña");
       return;
     }
-    api.login(user.trim());
-    navigate({ to: "/clientes" });
+    setLoading(true);
+    try {
+      if (mode === "login") {
+        await api.login(email.trim(), pass);
+      } else {
+        await api.signup(email.trim(), pass, name.trim() || undefined);
+        setInfo("Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.");
+        setMode("login");
+      }
+    } catch (e: any) {
+      setErr(e?.message || "Error de autenticación");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,46 +58,84 @@ function Login() {
           <p className="text-white/60 mt-2 text-sm">Gestión de clientes y cobranza</p>
         </div>
 
+        <div className="grid grid-cols-2 gap-2 mb-5 bg-white/5 rounded-xl p-1">
+          {(["login", "signup"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => { setMode(m); setErr(""); setInfo(""); }}
+              className={`py-2.5 rounded-lg text-sm font-bold transition ${
+                mode === m ? "bg-primary text-white" : "text-white/60"
+              }`}
+            >
+              {m === "login" ? "Iniciar sesión" : "Crear cuenta"}
+            </button>
+          ))}
+        </div>
+
         <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wider text-white/60 font-semibold">Usuario</label>
-            <div className="relative">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+          {mode === "signup" && (
+            <Field label="Nombre" icon={<User className="h-5 w-5 text-white/40" />}>
               <input
-                value={user}
-                onChange={(e) => setUser(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-4 text-base focus:outline-none focus:border-primary"
-                placeholder="usuario"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-transparent pl-12 pr-4 py-4 text-base focus:outline-none"
+                placeholder="Tu nombre"
               />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wider text-white/60 font-semibold">Contraseña</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
-              <input
-                type="password"
-                value={pass}
-                onChange={(e) => setPass(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-4 text-base focus:outline-none focus:border-primary"
-                placeholder="••••••"
-              />
-            </div>
-          </div>
+            </Field>
+          )}
+          <Field label="Correo" icon={<Mail className="h-5 w-5 text-white/40" />}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-transparent pl-12 pr-4 py-4 text-base focus:outline-none"
+              placeholder="correo@ejemplo.com"
+              autoComplete="email"
+            />
+          </Field>
+          <Field label="Contraseña" icon={<Lock className="h-5 w-5 text-white/40" />}>
+            <input
+              type="password"
+              value={pass}
+              onChange={(e) => setPass(e.target.value)}
+              className="w-full bg-transparent pl-12 pr-4 py-4 text-base focus:outline-none"
+              placeholder="••••••"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+            />
+          </Field>
 
           {err && <p className="text-primary text-sm">{err}</p>}
+          {info && <p className="text-green-400 text-sm">{info}</p>}
 
           <button
             type="submit"
-            className="w-full bg-primary hover:bg-brand-red-dark text-white font-bold py-4 rounded-xl text-base shadow-[var(--shadow-red)] active:scale-[0.98] transition"
+            disabled={loading}
+            className="w-full bg-primary hover:bg-brand-red-dark text-white font-bold py-4 rounded-xl text-base shadow-[var(--shadow-red)] active:scale-[0.98] transition disabled:opacity-60"
           >
-            INICIAR SESIÓN
+            {loading ? "..." : mode === "login" ? "INICIAR SESIÓN" : "CREAR CUENTA"}
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
 
-        <p className="text-center text-xs text-white/40 mt-8">
-          Demo: cualquier usuario / contraseña
-        </p>
+function Field({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs uppercase tracking-wider text-white/60 font-semibold">{label}</label>
+      <div className="relative bg-white/5 border border-white/10 rounded-xl focus-within:border-primary">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2">{icon}</span>
+        {children}
       </div>
     </div>
   );
