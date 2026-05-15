@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, totalDeudaCliente, tieneVencido, fmtMoney, api } from "@/lib/store";
+import { useDB, totalDeudaCliente, tieneVencido, fmtMoney, useApi } from "@/lib/store";
 import { Search, Plus, Phone, X, AlertTriangle, DollarSign, Users as UsersIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_app/clientes")({
@@ -121,15 +121,20 @@ function SumCard({
 }
 
 function NuevoClienteModal({ onClose }: { onClose: () => void }) {
+  const api = useApi();
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [direccion, setDireccion] = useState("");
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) return;
-    api.addCliente({ nombre: nombre.trim(), telefono: telefono.trim(), direccion: direccion.trim() });
-    onClose();
+    try {
+      await api.addCliente({ nombre: nombre.trim(), telefono: telefono.trim(), direccion: direccion.trim() });
+      onClose();
+    } catch (e: any) {
+      alert(e?.message || "Error al guardar");
+    }
   };
 
   return (

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { useDB, totalDeudaCliente, fmtMoney, api, type Pago } from "@/lib/store";
+import { useDB, totalDeudaCliente, fmtMoney, useApi, uploadReceiptPhoto, type Pago } from "@/lib/store";
 import { ArrowLeft, Camera, X } from "lucide-react";
 
 export const Route = createFileRoute("/_app/pago/$clienteId")({
@@ -10,6 +10,7 @@ export const Route = createFileRoute("/_app/pago/$clienteId")({
 function PagoScreen() {
   const { clienteId } = Route.useParams();
   const db = useDB();
+  const api = useApi();
   const navigate = useNavigate();
   const cliente = db.clientes.find((c) => c.id === clienteId);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -17,6 +18,8 @@ function PagoScreen() {
   const [metodo, setMetodo] = useState<Pago["metodo"]>("Efectivo");
   const [nota, setNota] = useState("");
   const [foto, setFoto] = useState<string | null>(null);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
 
   if (!cliente) return <div className="p-5">Cliente no encontrado</div>;
 
@@ -27,22 +30,34 @@ function PagoScreen() {
   const onFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    setFotoFile(f);
     const reader = new FileReader();
     reader.onload = () => setFoto(reader.result as string);
     reader.readAsDataURL(f);
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (montoNum <= 0) return;
-    const pago = api.addPago({
-      clienteId: cliente.id,
-      monto: montoNum,
-      metodo,
-      nota: nota || undefined,
-      reciboFoto: foto || undefined,
-    });
-    navigate({ to: "/recibo/$pagoId", params: { pagoId: pago.id } });
+    setSaving(true);
+    try {
+      let reciboUrl: string | undefined;
+      if (fotoFile) {
+        const url = await uploadReceiptPhoto(fotoFile);
+        reciboUrl = url ?? undefined;
+      }
+      const pago = await api.addPago({
+        clienteId: cliente.id,
+        monto: montoNum,
+        metodo,
+        nota: nota || undefined,
+        reciboFoto: reciboUrl,
+      });
+      navigate({ to: "/recibo/$pagoId", params: { pagoId: pago.id } });
+    } catch (err: any) {
+      alert(err?.message || "Error al registrar pago");
+      setSaving(false);
+    }
   };
 
   const metodos: Pago["metodo"][] = ["Efectivo", "Transferencia", "Tarjeta", "Otro"];
@@ -107,7 +122,7 @@ function PagoScreen() {
               <img src={foto} alt="Recibo" className="w-full h-48 object-cover rounded-xl" />
               <button
                 type="button"
-                onClick={() => setFoto(null)}
+                onClick={() => { setFoto(null); setFotoFile(null); }}
                 className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/70 text-white flex items-center justify-center"
               >
                 <X className="h-4 w-4" />
@@ -138,10 +153,10 @@ function PagoScreen() {
 
         <button
           type="submit"
-          disabled={montoNum <= 0}
+          disabled={montoNum <= 0 || saving}
           className="w-full bg-primary text-white font-bold py-5 rounded-xl text-lg shadow-[var(--shadow-red)] active:scale-[0.98] transition disabled:opacity-40 disabled:shadow-none"
         >
-          REGISTRAR PAGO
+          {saving ? "GUARDANDO..." : "REGISTRAR PAGO"}
         </button>
       </form>
     </div>

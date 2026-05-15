@@ -1,6 +1,6 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Users, Truck, BarChart3, LogOut, DollarSign, AlertTriangle, MessageCircle } from "lucide-react";
-import { useDB, api } from "@/lib/store";
+import { useAuth, useApi } from "@/lib/store";
 import { useEffect } from "react";
 
 const tabs = [
@@ -12,15 +12,16 @@ const tabs = [
 ] as const;
 
 export function AppShell() {
-  const db = useDB();
+  const auth = useAuth();
+  const api = useApi();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
-    if (!db.auth.user) navigate({ to: "/" });
-  }, [db.auth.user, navigate]);
+    if (auth.ready && !auth.user) navigate({ to: "/" });
+  }, [auth.ready, auth.user, navigate]);
 
-  if (!db.auth.user) return null;
+  if (!auth.ready || !auth.user) return null;
 
   const showWhats = tabs.some((t) => path.startsWith(t.to));
 
@@ -31,13 +32,12 @@ export function AppShell() {
           <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center font-extrabold text-white text-lg shadow-[var(--shadow-red)]">N</div>
           <div>
             <div className="font-extrabold tracking-tight leading-none text-lg">NOVAMIX</div>
-            <div className="text-[11px] text-white/60 mt-0.5">Hola, {db.auth.user}</div>
+            <div className="text-[11px] text-white/60 mt-0.5">Hola, {auth.userLabel}</div>
           </div>
         </Link>
         <button
           onClick={() => {
-            api.logout();
-            navigate({ to: "/" });
+            api.logout().then(() => navigate({ to: "/" }));
           }}
           className="h-10 w-10 rounded-xl bg-white/10 active:bg-white/20 flex items-center justify-center"
           aria-label="Salir"

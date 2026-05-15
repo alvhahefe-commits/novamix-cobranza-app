@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import type { Session } from "@supabase/supabase-js";
 
 export type Cliente = {
   id: string;
@@ -30,128 +33,284 @@ export type Entrega = {
   fechaVencimiento?: number;
 };
 
-type DB = {
+export type Producto = {
+  id: string;
+  nombre: string;
+  precio: number;
+  stock: number;
+};
+
+export type DB = {
   clientes: Cliente[];
   pagos: Pago[];
   entregas: Entrega[];
-  auth: { user: string | null };
+  productos: Producto[];
+  auth: { user: string | null; userId: string | null };
+  loading: boolean;
 };
 
-const KEY = "novamix_db_v1";
+// ---------- Auth hook ----------
+export function useAuth() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(false);
 
-function seed(): DB {
-  const now = Date.now();
-  const day = 86400000;
-  const c = (id: string, nombre: string, tel: string, dir: string): Cliente => ({
-    id,
-    nombre,
-    telefono: tel,
-    direccion: dir,
-    createdAt: now,
-  });
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+    });
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setReady(true);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   return {
-    clientes: [
-      c("c1", "María González", "5215512345678", "Av. Reforma 123, CDMX"),
-      c("c2", "Carlos Hernández", "5215598765432", "Calle Juárez 45, GDL"),
-      c("c3", "Lucía Martínez", "5215511223344", "Insurgentes 890, MTY"),
-      c("c4", "Jorge Ramírez", "5215544556677", "Av. Universidad 12, CDMX"),
-    ],
-    entregas: [
-      { id: "e1", clienteId: "c1", producto: "Pintura Premium 20L", cantidad: 2, monto: 1800, estado: "Entregado", fecha: now - 10 * day, fechaVencimiento: now - 3 * day },
-      { id: "e2", clienteId: "c2", producto: "Cemento gris 50kg", cantidad: 10, monto: 2500, estado: "En camino", fecha: now - day, fechaVencimiento: now + 7 * day },
-      { id: "e3", clienteId: "c3", producto: "Barniz transparente", cantidad: 4, monto: 950, estado: "Pendiente", fecha: now, fechaVencimiento: now + 5 * day },
-      { id: "e4", clienteId: "c4", producto: "Tubería PVC", cantidad: 8, monto: 1200, estado: "Entregado", fecha: now - 20 * day, fechaVencimiento: now - 10 * day },
-    ],
-    pagos: [
-      { id: "p1", clienteId: "c1", monto: 800, metodo: "Efectivo", fecha: now - 5 * day },
-      { id: "p2", clienteId: "c4", monto: 600, metodo: "Transferencia", fecha: now - 8 * day },
-    ],
-    auth: { user: null },
+    session,
+    user: session?.user ?? null,
+    userId: session?.user?.id ?? null,
+    userLabel:
+      session?.user?.user_metadata?.name ||
+      session?.user?.email?.split("@")[0] ||
+      null,
+    ready,
   };
 }
 
-function load(): DB {
-  if (typeof window === "undefined") return seed();
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) {
-      const s = seed();
-      localStorage.setItem(KEY, JSON.stringify(s));
-      return s;
-    }
-    return JSON.parse(raw) as DB;
-  } catch {
-    return seed();
+// ---------- Mappers ----------
+function mapCliente(r: any): Cliente {
+  return {
+    id: r.id,
+    nombre: r.full_name,
+    telefono: r.phone ?? "",
+    direccion: r.address ?? "",
+    notas: r.notes ?? undefined,
+    createdAt: new Date(r.created_at).getTime(),
+  };
+}
+function mapPago(r: any): Pago {
+  return {
+    id: r.id,
+    clienteId: r.customer_id,
+    monto: Number(r.amount),
+    metodo: r.method,
+    fecha: new Date(r.payment_date).getTime(),
+    reciboFoto: r.receipt_photo_url ?? undefined,
+    nota: r.notes ?? undefined,
+  };
+}
+function mapEntrega(r: any): Entrega {
+  return {
+    id: r.id,
+    clienteId: r.customer_id,
+    producto: r.product,
+    cantidad: r.quantity,
+    monto: Number(r.total_amount),
+    estado: r.status,
+    fecha: new Date(r.delivery_date).getTime(),
+    fechaVencimiento: r.due_date ? new Date(r.due_date).getTime() : undefined,
+  };
+}
+function mapProducto(r: any): Producto {
+  return { id: r.id, nombre: r.name, precio: Number(r.price), stock: r.stock };
+}
+
+// ---------- Data hook ----------
+export function useDB(): DB {
+  const auth = useAuth();
+  const userId = auth.userId;
+
+  const enabled = !!userId;
+
+  const clientesQ = useQuery({
+    queryKey: ["clientes", userId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data.map(mapCliente);
+    },
+  });
+
+  const pagosQ = useQuery({
+    queryKey: ["pagos", userId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .order("payment_date", { ascending: false });
+      if (error) throw error;
+      return data.map(mapPago);
+    },
+  });
+
+  const entregasQ = useQuery({
+    queryKey: ["entregas", userId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("deliveries")
+        .select("*")
+        .order("delivery_date", { ascending: false });
+      if (error) throw error;
+      return data.map(mapEntrega);
+    },
+  });
+
+  const productosQ = useQuery({
+    queryKey: ["productos", userId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data.map(mapProducto);
+    },
+  });
+
+  return {
+    clientes: clientesQ.data ?? [],
+    pagos: pagosQ.data ?? [],
+    entregas: entregasQ.data ?? [],
+    productos: productosQ.data ?? [],
+    auth: { user: auth.userLabel, userId },
+    loading:
+      !auth.ready ||
+      clientesQ.isLoading ||
+      pagosQ.isLoading ||
+      entregasQ.isLoading,
+  };
+}
+
+// ---------- Storage ----------
+export async function uploadReceiptPhoto(file: File): Promise<string | null> {
+  const { data: u } = await supabase.auth.getUser();
+  const uid = u.user?.id;
+  if (!uid) return null;
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from("receipts").upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+  });
+  if (error) {
+    console.error("upload", error);
+    return null;
   }
+  const { data } = supabase.storage.from("receipts").getPublicUrl(path);
+  return data.publicUrl;
 }
 
-let _db: DB | null = null;
-const listeners = new Set<() => void>();
+// ---------- Mutations API ----------
+export function useApi() {
+  const qc = useQueryClient();
+  const invalidate = (k: string) => qc.invalidateQueries({ queryKey: [k] });
 
-function getDB(): DB {
-  if (!_db) _db = load();
-  return _db;
+  return {
+    async login(email: string, password: string) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    },
+    async signup(email: string, password: string, name?: string) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: name ? { name } : undefined,
+        },
+      });
+      if (error) throw error;
+    },
+    async logout() {
+      await supabase.auth.signOut();
+      qc.clear();
+    },
+    async addCliente(c: { nombre: string; telefono: string; direccion: string; notas?: string }) {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Sin sesión");
+      const { data, error } = await supabase
+        .from("customers")
+        .insert({
+          user_id: u.user.id,
+          full_name: c.nombre,
+          phone: c.telefono,
+          address: c.direccion,
+          notes: c.notas,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate("clientes");
+      return mapCliente(data);
+    },
+    async addPago(p: {
+      clienteId: string;
+      monto: number;
+      metodo: Pago["metodo"];
+      reciboFoto?: string;
+      nota?: string;
+    }): Promise<Pago> {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Sin sesión");
+      const { data, error } = await supabase
+        .from("payments")
+        .insert({
+          user_id: u.user.id,
+          customer_id: p.clienteId,
+          amount: p.monto,
+          method: p.metodo,
+          receipt_photo_url: p.reciboFoto,
+          notes: p.nota,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate("pagos");
+      return mapPago(data);
+    },
+    async addEntrega(e: {
+      clienteId: string;
+      producto: string;
+      cantidad: number;
+      monto: number;
+      estado: Entrega["estado"];
+      fechaVencimiento?: number;
+    }) {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("Sin sesión");
+      const { data, error } = await supabase
+        .from("deliveries")
+        .insert({
+          user_id: u.user.id,
+          customer_id: e.clienteId,
+          product: e.producto,
+          quantity: e.cantidad,
+          total_amount: e.monto,
+          status: e.estado,
+          due_date: e.fechaVencimiento ? new Date(e.fechaVencimiento).toISOString() : null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      invalidate("entregas");
+      return mapEntrega(data);
+    },
+    async updateEntregaEstado(id: string, estado: Entrega["estado"]) {
+      const { error } = await supabase.from("deliveries").update({ status: estado }).eq("id", id);
+      if (error) throw error;
+      invalidate("entregas");
+    },
+  };
 }
 
-function save() {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(KEY, JSON.stringify(_db));
-  }
-  listeners.forEach((l) => l());
-}
-
-export function useDB() {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const fn = () => setTick((t) => t + 1);
-    listeners.add(fn);
-    if (!_db) {
-      _db = load();
-      setTick((t) => t + 1);
-    }
-    return () => {
-      listeners.delete(fn);
-    };
-  }, []);
-  return getDB();
-}
-
-export const api = {
-  login(user: string) {
-    getDB().auth.user = user;
-    save();
-  },
-  logout() {
-    getDB().auth.user = null;
-    save();
-  },
-  addCliente(c: Omit<Cliente, "id" | "createdAt">) {
-    const nuevo: Cliente = { ...c, id: "c" + Date.now(), createdAt: Date.now() };
-    getDB().clientes.unshift(nuevo);
-    save();
-    return nuevo;
-  },
-  addPago(p: Omit<Pago, "id" | "fecha"> & { fecha?: number }) {
-    const nuevo: Pago = { ...p, id: "p" + Date.now(), fecha: p.fecha ?? Date.now() };
-    getDB().pagos.unshift(nuevo);
-    save();
-    return nuevo;
-  },
-  addEntrega(e: Omit<Entrega, "id" | "fecha"> & { fecha?: number }) {
-    const nuevo: Entrega = { ...e, id: "e" + Date.now(), fecha: e.fecha ?? Date.now() };
-    getDB().entregas.unshift(nuevo);
-    save();
-    return nuevo;
-  },
-  updateEntregaEstado(id: string, estado: Entrega["estado"]) {
-    const en = getDB().entregas.find((x) => x.id === id);
-    if (en) {
-      en.estado = estado;
-      save();
-    }
-  },
-};
-
+// ---------- Selectors ----------
 export function totalDeudaCliente(db: DB, clienteId: string) {
   const total = db.entregas.filter((e) => e.clienteId === clienteId).reduce((s, e) => s + e.monto, 0);
   const pagado = db.pagos.filter((p) => p.clienteId === clienteId).reduce((s, p) => s + p.monto, 0);
@@ -160,10 +319,10 @@ export function totalDeudaCliente(db: DB, clienteId: string) {
 
 export function tieneVencido(db: DB, clienteId: string) {
   const now = Date.now();
-  const entregasVencidas = db.entregas.filter(
+  const vencidas = db.entregas.filter(
     (e) => e.clienteId === clienteId && e.fechaVencimiento && e.fechaVencimiento < now,
   );
-  if (entregasVencidas.length === 0) return false;
+  if (vencidas.length === 0) return false;
   return totalDeudaCliente(db, clienteId) > 0;
 }
 
