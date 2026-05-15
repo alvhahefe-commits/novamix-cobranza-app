@@ -1,12 +1,13 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Truck, BarChart3, LogOut } from "lucide-react";
+import { Users, Truck, BarChart3, LogOut, DollarSign, AlertTriangle, MessageCircle } from "lucide-react";
 import { useDB, api } from "@/lib/store";
 import { useEffect } from "react";
 
 const tabs = [
-  { to: "/dashboard", label: "Inicio", icon: LayoutDashboard },
   { to: "/clientes", label: "Clientes", icon: Users },
+  { to: "/cobrar", label: "Cobrar", icon: DollarSign },
   { to: "/entregas", label: "Entregas", icon: Truck },
+  { to: "/morosos", label: "Morosos", icon: AlertTriangle },
   { to: "/reportes", label: "Reportes", icon: BarChart3 },
 ] as const;
 
@@ -21,33 +22,47 @@ export function AppShell() {
 
   if (!db.auth.user) return null;
 
+  const showWhats = tabs.some((t) => path.startsWith(t.to));
+
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
-      <header className="sticky top-0 z-30 bg-brand-black text-white px-5 py-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center font-extrabold text-white">N</div>
+      <header className="sticky top-0 z-30 bg-brand-black text-white px-5 py-4 flex items-center justify-between shadow-lg border-b border-white/5">
+        <Link to="/dashboard" className="flex items-center gap-2.5">
+          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center font-extrabold text-white text-lg shadow-[var(--shadow-red)]">N</div>
           <div>
-            <div className="font-extrabold tracking-tight leading-none">NOVAMIX</div>
-            <div className="text-[11px] text-white/60">Hola, {db.auth.user}</div>
+            <div className="font-extrabold tracking-tight leading-none text-lg">NOVAMIX</div>
+            <div className="text-[11px] text-white/60 mt-0.5">Hola, {db.auth.user}</div>
           </div>
-        </div>
+        </Link>
         <button
           onClick={() => {
             api.logout();
             navigate({ to: "/" });
           }}
-          className="h-9 w-9 rounded-lg bg-white/10 active:bg-white/20 flex items-center justify-center"
+          className="h-10 w-10 rounded-xl bg-white/10 active:bg-white/20 flex items-center justify-center"
           aria-label="Salir"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-5 w-5" />
         </button>
       </header>
 
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-28">
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 inset-x-0 max-w-md mx-auto bg-brand-black text-white border-t border-white/10 grid grid-cols-4 z-40">
+      {showWhats && (
+        <a
+          href="https://wa.me/"
+          target="_blank"
+          rel="noreferrer"
+          className="fixed bottom-24 left-5 h-14 w-14 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg active:scale-95 transition z-30"
+          aria-label="WhatsApp"
+        >
+          <MessageCircle className="h-7 w-7" />
+        </a>
+      )}
+
+      <nav className="fixed bottom-0 inset-x-0 max-w-md mx-auto bg-brand-black text-white border-t border-white/10 grid grid-cols-5 z-40 pb-1">
         {tabs.map((t) => {
           const active = path.startsWith(t.to);
           const Icon = t.icon;
@@ -57,8 +72,8 @@ export function AppShell() {
               to={t.to}
               className="flex flex-col items-center gap-1 py-3 active:bg-white/5"
             >
-              <Icon className={`h-6 w-6 ${active ? "text-primary" : "text-white/70"}`} />
-              <span className={`text-[11px] font-medium ${active ? "text-primary" : "text-white/70"}`}>{t.label}</span>
+              <Icon className={`h-6 w-6 ${active ? "text-primary" : "text-white/60"}`} />
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${active ? "text-primary" : "text-white/60"}`}>{t.label}</span>
             </Link>
           );
         })}
