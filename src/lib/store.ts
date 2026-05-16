@@ -31,6 +31,7 @@ export type Entrega = {
   estado: "Pendiente" | "En camino" | "Entregado";
   fecha: number;
   fechaVencimiento?: number;
+  foto?: string;
 };
 
 export type Producto = {
@@ -109,6 +110,7 @@ function mapEntrega(r: any): Entrega {
     estado: r.status,
     fecha: new Date(r.delivery_date).getTime(),
     fechaVencimiento: r.due_date ? new Date(r.due_date).getTime() : undefined,
+    foto: r.delivery_photo_url ?? undefined,
   };
 }
 function mapProducto(r: any): Producto {
