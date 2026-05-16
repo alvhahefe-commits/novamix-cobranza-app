@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useDB, totalDeudaCliente, tieneVencido, fmtMoney, useApi } from "@/lib/store";
 import { Search, Plus, Phone, X, AlertTriangle, DollarSign, Users as UsersIcon } from "lucide-react";
 
-export const Route = createFileRoute("/_app/clientes")({
+export const Route = createFileRoute("/_app/clientes/")({
   component: Clientes,
 });
 
