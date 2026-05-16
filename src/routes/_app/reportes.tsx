@@ -22,6 +22,17 @@ function Reportes() {
 
   const pagosHoy = db.pagos.filter((p) => p.fecha >= startOfDay).sort((a, b) => b.fecha - a.fecha);
 
+  const ventasHoy = db.entregas.filter((e) => e.fecha >= startOfDay).reduce((s, e) => s + e.monto, 0);
+
+  const topClientes = db.clientes
+    .map((c) => ({
+      c,
+      compras: db.entregas.filter((e) => e.clienteId === c.id).reduce((s, e) => s + e.monto, 0),
+    }))
+    .filter((x) => x.compras > 0)
+    .sort((a, b) => b.compras - a.compras)
+    .slice(0, 5);
+
   return (
     <div className="px-5 py-5 space-y-5">
       <div>
@@ -36,6 +47,7 @@ function Reportes() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
+        <Stat label="Ventas hoy" value={fmtMoney(ventasHoy)} />
         <Stat label="Esta semana" value={fmtMoney(cobradoSem)} />
         <Stat label="Este mes" value={fmtMoney(cobradoMes)} />
         <Stat label="Deuda total" value={fmtMoney(deudaTotal)} />
@@ -79,6 +91,25 @@ function Reportes() {
               </div>
             ))}
         </div>
+      </section>
+
+      <section>
+        <h2 className="font-bold text-lg mb-2">Top clientes (compras)</h2>
+        {topClientes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin ventas registradas</p>
+        ) : (
+          <div className="space-y-2">
+            {topClientes.map(({ c, compras }, i) => (
+              <div key={c.id} className="flex justify-between items-center rounded-xl p-4 border bg-card border-border">
+                <div className="flex items-center gap-3">
+                  <span className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center font-extrabold text-sm">{i + 1}</span>
+                  <p className="font-bold">{c.nombre}</p>
+                </div>
+                <p className="font-extrabold">{fmtMoney(compras)}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
