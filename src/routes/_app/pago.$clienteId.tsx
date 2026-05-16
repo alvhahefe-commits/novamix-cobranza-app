@@ -1,7 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useDB, totalDeudaCliente, fmtMoney, useApi, uploadReceiptPhoto, type Pago } from "@/lib/store";
-import { ArrowLeft, Camera, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { PhotoPicker } from "@/components/PhotoPicker";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/pago/$clienteId")({
   component: PagoScreen,
@@ -13,7 +15,6 @@ function PagoScreen() {
   const api = useApi();
   const navigate = useNavigate();
   const cliente = db.clientes.find((c) => c.id === clienteId);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [monto, setMonto] = useState("");
   const [metodo, setMetodo] = useState<Pago["metodo"]>("Efectivo");
   const [nota, setNota] = useState("");
@@ -27,18 +28,12 @@ function PagoScreen() {
   const montoNum = parseFloat(monto) || 0;
   const restante = Math.max(0, deudaActual - montoNum);
 
-  const onFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFotoFile(f);
-    const reader = new FileReader();
-    reader.onload = () => setFoto(reader.result as string);
-    reader.readAsDataURL(f);
-  };
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (montoNum <= 0) return;
+    if (montoNum <= 0) {
+      toast.error("Ingresa un monto válido");
+      return;
+    }
     setSaving(true);
     try {
       let reciboUrl: string | undefined;
@@ -53,9 +48,10 @@ function PagoScreen() {
         nota: nota || undefined,
         reciboFoto: reciboUrl,
       });
+      toast.success("Pago registrado");
       navigate({ to: "/recibo/$pagoId", params: { pagoId: pago.id } });
     } catch (err: any) {
-      alert(err?.message || "Error al registrar pago");
+      toast.error(err?.message || "Error al registrar pago");
       setSaving(false);
     }
   };
@@ -115,31 +111,13 @@ function PagoScreen() {
           </div>
         </div>
 
-        <div>
-          <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Foto del recibo</label>
-          {foto ? (
-            <div className="mt-2 relative">
-              <img src={foto} alt="Recibo" className="w-full h-48 object-cover rounded-xl" />
-              <button
-                type="button"
-                onClick={() => { setFoto(null); setFotoFile(null); }}
-                className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/70 text-white flex items-center justify-center"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="mt-2 w-full border-2 border-dashed border-border rounded-xl py-8 flex flex-col items-center gap-2 text-muted-foreground active:bg-muted"
-            >
-              <Camera className="h-7 w-7" />
-              <span className="text-sm font-semibold">Subir foto del recibo</span>
-            </button>
-          )}
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFoto} />
-        </div>
+        <PhotoPicker
+          value={foto}
+          onChange={(preview, file) => {
+            setFoto(preview);
+            setFotoFile(file);
+          }}
+        />
 
         <div>
           <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Nota (opcional)</label>
