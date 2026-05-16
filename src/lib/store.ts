@@ -263,6 +263,13 @@ export function useApi() {
       if (error) throw error;
       invalidate("clientes");
     },
+    async deleteCliente(id: string) {
+      const { error } = await supabase.from("customers").delete().eq("id", id);
+      if (error) throw error;
+      invalidate("clientes");
+      invalidate("pagos");
+      invalidate("entregas");
+    },
     async addPago(p: {
       clienteId: string;
       monto: number;
@@ -317,6 +324,11 @@ export function useApi() {
     },
     async updateEntregaEstado(id: string, estado: Entrega["estado"]) {
       const { error } = await supabase.from("deliveries").update({ status: estado }).eq("id", id);
+      if (error) throw error;
+      invalidate("entregas");
+    },
+    async updateEntregaFoto(id: string, url: string) {
+      const { error } = await supabase.from("deliveries").update({ delivery_photo_url: url }).eq("id", id);
       if (error) throw error;
       invalidate("entregas");
     },
