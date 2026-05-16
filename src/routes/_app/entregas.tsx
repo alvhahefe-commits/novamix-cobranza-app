@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, fmtMoney, fmtDate, useApi, type Entrega } from "@/lib/store";
-import { Plus, X, Truck, Check, Clock } from "lucide-react";
+import { useDB, fmtMoney, fmtDate, useApi, uploadReceiptPhoto, type Entrega } from "@/lib/store";
+import { Plus, X, Truck, Check, Clock, Camera } from "lucide-react";
+import { PhotoPicker, ImageViewer } from "@/components/PhotoPicker";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/entregas")({
   component: EntregasScreen,
@@ -19,6 +21,8 @@ function EntregasScreen() {
   const api = useApi();
   const [tab, setTab] = useState<(typeof tabs)[number]["key"]>("Todas");
   const [open, setOpen] = useState(false);
+  const [verFoto, setVerFoto] = useState<string | null>(null);
+  const [fotoEntrega, setFotoEntrega] = useState<Entrega | null>(null);
 
   const items = db.entregas
     .filter((e) => tab === "Todas" || e.estado === tab)
@@ -61,21 +65,30 @@ function EntregasScreen() {
                 <span className="text-muted-foreground">Cant: {e.cantidad} • {fmtDate(e.fecha)}</span>
                 <EstadoBadge estado={e.estado} />
               </div>
+              {e.foto && (
+                <button
+                  type="button"
+                  onClick={() => setVerFoto(e.foto!)}
+                  className="mt-3 block w-full h-32 rounded-lg overflow-hidden border border-border"
+                >
+                  <img src={e.foto} alt="Entrega" className="w-full h-full object-cover" />
+                </button>
+              )}
               {e.estado !== "Entregado" && (
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   {e.estado === "Pendiente" && (
                     <button
-                      onClick={() => api.updateEntregaEstado(e.id, "En camino")}
+                      onClick={() => api.updateEntregaEstado(e.id, "En camino").then(() => toast.success("Marcado en camino"))}
                       className="bg-amber-500 text-white py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-1"
                     >
                       <Truck className="h-4 w-4" /> En camino
                     </button>
                   )}
                   <button
-                    onClick={() => api.updateEntregaEstado(e.id, "Entregado")}
+                    onClick={() => setFotoEntrega(e)}
                     className={`${e.estado === "Pendiente" ? "" : "col-span-2"} bg-green-600 text-white py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-1`}
                   >
-                    <Check className="h-4 w-4" /> Marcar entregado
+                    <Check className="h-4 w-4" /> Entregado
                   </button>
                 </div>
               )}
@@ -93,6 +106,56 @@ function EntregasScreen() {
       </button>
 
       {open && <NuevaEntregaModal onClose={() => setOpen(false)} />}
+      {fotoEntrega && (
+        <ConfirmarEntregaModal
+          entrega={fotoEntrega}
+          onClose={() => setFotoEntrega(null)}
+        />
+      )}
+      {verFoto && <ImageViewer src={verFoto} onClose={() => setVerFoto(null)} />}
+    </div>
+  );
+}
+
+function ConfirmarEntregaModal({ entrega, onClose }: { entrega: Entrega; onClose: () => void }) {
+  const api = useApi();
+  const [foto, setFoto] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const confirm = async () => {
+    setSaving(true);
+    try {
+      if (file) {
+        const url = await uploadReceiptPhoto(file);
+        if (url) await api.updateEntregaFoto(entrega.id, url);
+      }
+      await api.updateEntregaEstado(entrega.id, "Entregado");
+      toast.success("Entrega confirmada");
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message || "Error al confirmar");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-end" onClick={onClose}>
+      <div className="bg-card w-full max-w-md mx-auto rounded-t-3xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-extrabold">Confirmar entrega</h2>
+          <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center"><X className="h-5 w-5" /></button>
+        </div>
+        <p className="text-sm text-muted-foreground">{entrega.producto} · {fmtMoney(entrega.monto)}</p>
+        <PhotoPicker label="Foto de entrega (opcional)" value={foto} onChange={(p, f) => { setFoto(p); setFile(f); }} />
+        <button
+          onClick={confirm}
+          disabled={saving}
+          className="w-full bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+        >
+          <Camera className="h-5 w-5" /> {saving ? "GUARDANDO..." : "CONFIRMAR ENTREGA"}
+        </button>
+      </div>
     </div>
   );
 }
