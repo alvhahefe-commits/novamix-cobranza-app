@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate } from "@/lib/store";
-import { ArrowLeft, MessageCircle, Phone, MapPin, DollarSign, Plus, FileText } from "lucide-react";
+import { useDB, useApi, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate } from "@/lib/store";
+import { ArrowLeft, MessageCircle, Phone, MapPin, DollarSign, Plus, FileText, Pencil, ShoppingCart, X } from "lucide-react";
 
 export const Route = createFileRoute("/_app/clientes/$id")({
   component: ClienteDetalle,
@@ -13,6 +13,8 @@ function ClienteDetalle() {
   const navigate = useNavigate();
   const cliente = db.clientes.find((c) => c.id === id);
   const [verRecibo, setVerRecibo] = useState<string | null>(null);
+  const [editar, setEditar] = useState(false);
+  const [nuevaVenta, setNuevaVenta] = useState(false);
 
   if (!cliente) {
     return (
@@ -65,7 +67,7 @@ function ClienteDetalle() {
           params={{ clienteId: cliente.id }}
           className="bg-primary text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-[var(--shadow-red)] active:scale-[0.98] transition"
         >
-          <DollarSign className="h-5 w-5" /> COBRAR
+          <DollarSign className="h-5 w-5" /> REGISTRAR PAGO
         </Link>
         {tel && (
           <a
@@ -77,6 +79,21 @@ function ClienteDetalle() {
             <MessageCircle className="h-5 w-5" /> WHATSAPP
           </a>
         )}
+      </div>
+
+      <div className="px-5 grid grid-cols-2 gap-3">
+        <button
+          onClick={() => setNuevaVenta(true)}
+          className="bg-foreground text-background font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition"
+        >
+          <ShoppingCart className="h-5 w-5" /> NUEVA VENTA
+        </button>
+        <button
+          onClick={() => setEditar(true)}
+          className="bg-muted text-foreground font-bold py-4 rounded-xl flex items-center justify-center gap-2 border border-border active:scale-[0.98] transition"
+        >
+          <Pencil className="h-5 w-5" /> EDITAR
+        </button>
       </div>
 
       <div className="px-5 pb-6 space-y-5">
@@ -171,6 +188,154 @@ function ClienteDetalle() {
           </button>
         </div>
       )}
+
+      {editar && <EditarClienteModal cliente={cliente} onClose={() => setEditar(false)} />}
+      {nuevaVenta && <NuevaVentaModal clienteId={cliente.id} onClose={() => setNuevaVenta(false)} />}
+    </div>
+  );
+}
+
+function EditarClienteModal({
+  cliente,
+  onClose,
+}: {
+  cliente: { id: string; nombre: string; telefono: string; direccion: string; notas?: string };
+  onClose: () => void;
+}) {
+  const api = useApi();
+  const [nombre, setNombre] = useState(cliente.nombre);
+  const [telefono, setTelefono] = useState(cliente.telefono);
+  const [direccion, setDireccion] = useState(cliente.direccion);
+  const [notas, setNotas] = useState(cliente.notas ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nombre.trim()) return;
+    setSaving(true);
+    try {
+      await api.updateCliente(cliente.id, {
+        nombre: nombre.trim(),
+        telefono: telefono.trim(),
+        direccion: direccion.trim(),
+        notas: notas.trim() || undefined,
+      });
+      onClose();
+    } catch (e: any) {
+      alert(e?.message || "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center" onClick={onClose}>
+      <div className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-extrabold">Editar cliente</h2>
+          <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={submit} className="space-y-3">
+          <Field label="Nombre *" value={nombre} onChange={setNombre} />
+          <Field label="Teléfono" value={telefono} onChange={setTelefono} type="tel" />
+          <Field label="Dirección" value={direccion} onChange={setDireccion} />
+          <Field label="Notas" value={notas} onChange={setNotas} />
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full bg-primary text-white font-bold py-4 rounded-xl text-base mt-2 active:scale-[0.98] transition shadow-[var(--shadow-red)] disabled:opacity-50"
+          >
+            {saving ? "GUARDANDO..." : "GUARDAR CAMBIOS"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: () => void }) {
+  const api = useApi();
+  const [producto, setProducto] = useState("");
+  const [cantidad, setCantidad] = useState("1");
+  const [monto, setMonto] = useState("");
+  const [vence, setVence] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!producto.trim() || !monto) return;
+    setSaving(true);
+    try {
+      await api.addEntrega({
+        clienteId,
+        producto: producto.trim(),
+        cantidad: parseInt(cantidad) || 1,
+        monto: parseFloat(monto),
+        estado: "Pendiente",
+        fechaVencimiento: vence ? new Date(vence).getTime() : undefined,
+      });
+      onClose();
+    } catch (e: any) {
+      alert(e?.message || "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center" onClick={onClose}>
+      <div className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-extrabold">Nueva venta</h2>
+          <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={submit} className="space-y-3">
+          <Field label="Producto *" value={producto} onChange={setProducto} placeholder="Ej. Garrafón 20L" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cantidad" value={cantidad} onChange={setCantidad} type="number" />
+            <Field label="Monto total *" value={monto} onChange={setMonto} type="number" placeholder="0.00" />
+          </div>
+          <Field label="Vence (opcional)" value={vence} onChange={setVence} type="date" />
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full bg-primary text-white font-bold py-4 rounded-xl text-base mt-2 active:scale-[0.98] transition shadow-[var(--shadow-red)] disabled:opacity-50"
+          >
+            {saving ? "GUARDANDO..." : "REGISTRAR VENTA"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 text-base focus:outline-none focus:border-primary"
+      />
     </div>
   );
 }

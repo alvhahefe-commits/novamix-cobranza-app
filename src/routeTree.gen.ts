@@ -17,6 +17,7 @@ import { Route as AppEntregasRouteImport } from './routes/_app/entregas'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCobrarRouteImport } from './routes/_app/cobrar'
 import { Route as AppClientesRouteImport } from './routes/_app/clientes'
+import { Route as AppClientesIndexRouteImport } from './routes/_app/clientes.index'
 import { Route as AppReciboPagoIdRouteImport } from './routes/_app/recibo.$pagoId'
 import { Route as AppPagoClienteIdRouteImport } from './routes/_app/pago.$clienteId'
 import { Route as AppClientesIdRouteImport } from './routes/_app/clientes.$id'
@@ -60,6 +61,11 @@ const AppClientesRoute = AppClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppClientesIndexRoute = AppClientesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppClientesRoute,
+} as any)
 const AppReciboPagoIdRoute = AppReciboPagoIdRouteImport.update({
   id: '/recibo/$pagoId',
   path: '/recibo/$pagoId',
@@ -87,10 +93,10 @@ export interface FileRoutesByFullPath {
   '/clientes/$id': typeof AppClientesIdRoute
   '/pago/$clienteId': typeof AppPagoClienteIdRoute
   '/recibo/$pagoId': typeof AppReciboPagoIdRoute
+  '/clientes/': typeof AppClientesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/clientes': typeof AppClientesRouteWithChildren
   '/cobrar': typeof AppCobrarRoute
   '/dashboard': typeof AppDashboardRoute
   '/entregas': typeof AppEntregasRoute
@@ -99,6 +105,7 @@ export interface FileRoutesByTo {
   '/clientes/$id': typeof AppClientesIdRoute
   '/pago/$clienteId': typeof AppPagoClienteIdRoute
   '/recibo/$pagoId': typeof AppReciboPagoIdRoute
+  '/clientes': typeof AppClientesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +120,7 @@ export interface FileRoutesById {
   '/_app/clientes/$id': typeof AppClientesIdRoute
   '/_app/pago/$clienteId': typeof AppPagoClienteIdRoute
   '/_app/recibo/$pagoId': typeof AppReciboPagoIdRoute
+  '/_app/clientes/': typeof AppClientesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,10 +135,10 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/pago/$clienteId'
     | '/recibo/$pagoId'
+    | '/clientes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/clientes'
     | '/cobrar'
     | '/dashboard'
     | '/entregas'
@@ -139,6 +147,7 @@ export interface FileRouteTypes {
     | '/clientes/$id'
     | '/pago/$clienteId'
     | '/recibo/$pagoId'
+    | '/clientes'
   id:
     | '__root__'
     | '/'
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/_app/clientes/$id'
     | '/_app/pago/$clienteId'
     | '/_app/recibo/$pagoId'
+    | '/_app/clientes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -217,6 +227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/clientes/': {
+      id: '/_app/clientes/'
+      path: '/'
+      fullPath: '/clientes/'
+      preLoaderRoute: typeof AppClientesIndexRouteImport
+      parentRoute: typeof AppClientesRoute
+    }
     '/_app/recibo/$pagoId': {
       id: '/_app/recibo/$pagoId'
       path: '/recibo/$pagoId'
@@ -243,10 +260,12 @@ declare module '@tanstack/react-router' {
 
 interface AppClientesRouteChildren {
   AppClientesIdRoute: typeof AppClientesIdRoute
+  AppClientesIndexRoute: typeof AppClientesIndexRoute
 }
 
 const AppClientesRouteChildren: AppClientesRouteChildren = {
   AppClientesIdRoute: AppClientesIdRoute,
+  AppClientesIndexRoute: AppClientesIndexRoute,
 }
 
 const AppClientesRouteWithChildren = AppClientesRoute._addFileChildren(

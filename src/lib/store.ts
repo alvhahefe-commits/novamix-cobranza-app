@@ -250,6 +250,19 @@ export function useApi() {
       invalidate("clientes");
       return mapCliente(data);
     },
+    async updateCliente(id: string, c: { nombre: string; telefono: string; direccion: string; notas?: string }) {
+      const { error } = await supabase
+        .from("customers")
+        .update({
+          full_name: c.nombre,
+          phone: c.telefono,
+          address: c.direccion,
+          notes: c.notas,
+        })
+        .eq("id", id);
+      if (error) throw error;
+      invalidate("clientes");
+    },
     async addPago(p: {
       clienteId: string;
       monto: number;
