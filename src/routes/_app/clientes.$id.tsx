@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useDB, useApi, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate } from "@/lib/store";
-import { ArrowLeft, MessageCircle, Phone, MapPin, DollarSign, Plus, FileText, Pencil, ShoppingCart, X } from "lucide-react";
+import { ArrowLeft, MessageCircle, Phone, MapPin, DollarSign, Plus, FileText, Pencil, ShoppingCart, X, Truck, Receipt, Trash2 } from "lucide-react";
+import { ImageViewer } from "@/components/PhotoPicker";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/clientes/$id")({
   component: ClienteDetalle,
@@ -10,11 +12,15 @@ export const Route = createFileRoute("/_app/clientes/$id")({
 function ClienteDetalle() {
   const { id } = Route.useParams();
   const db = useDB();
+  const api = useApi();
   const navigate = useNavigate();
   const cliente = db.clientes.find((c) => c.id === id);
   const [verRecibo, setVerRecibo] = useState<string | null>(null);
   const [editar, setEditar] = useState(false);
   const [nuevaVenta, setNuevaVenta] = useState(false);
+  const [nuevaEntrega, setNuevaEntrega] = useState(false);
+  const [verRecibos, setVerRecibos] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!cliente) {
     return (
@@ -31,6 +37,7 @@ function ClienteDetalle() {
   const entregas = db.entregas.filter((e) => e.clienteId === cliente.id).sort((a, b) => b.fecha - a.fecha);
   const totalEntregas = entregas.reduce((s, e) => s + e.monto, 0);
   const totalPagado = pagos.reduce((s, p) => s + p.monto, 0);
+  const recibosConFoto = pagos.filter((p) => p.reciboFoto);
 
   const tel = cliente.telefono.replace(/\D/g, "");
 
@@ -87,6 +94,24 @@ function ClienteDetalle() {
           className="bg-foreground text-background font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition"
         >
           <ShoppingCart className="h-5 w-5" /> NUEVA VENTA
+        </button>
+        <button
+          onClick={() => setNuevaEntrega(true)}
+          className="bg-foreground text-background font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition"
+        >
+          <Truck className="h-5 w-5" /> NUEVA ENTREGA
+        </button>
+      </div>
+
+      <div className="px-5 grid grid-cols-2 gap-3 mt-3">
+        <button
+          onClick={() => setVerRecibos(true)}
+          className="bg-muted text-foreground font-bold py-4 rounded-xl flex items-center justify-center gap-2 border border-border active:scale-[0.98] transition"
+        >
+          <Receipt className="h-5 w-5" /> VER RECIBOS
+          {recibosConFoto.length > 0 && (
+            <span className="ml-1 text-xs bg-primary text-white px-2 py-0.5 rounded-full">{recibosConFoto.length}</span>
+          )}
         </button>
         <button
           onClick={() => setEditar(true)}
@@ -174,23 +199,172 @@ function ClienteDetalle() {
         </section>
       </div>
 
-      {verRecibo && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setVerRecibo(null)}
+      <div className="px-5 pb-6">
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="w-full text-xs text-muted-foreground py-3 flex items-center justify-center gap-2 active:text-primary"
         >
-          <img src={verRecibo} alt="Recibo" className="max-w-full max-h-full rounded-xl" />
-          <button
-            onClick={() => setVerRecibo(null)}
-            className="absolute top-5 right-5 h-10 w-10 rounded-full bg-white/20 text-white flex items-center justify-center"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+          <Trash2 className="h-3.5 w-3.5" /> Eliminar cliente
+        </button>
+      </div>
+
+      {verRecibo && <ImageViewer src={verRecibo} onClose={() => setVerRecibo(null)} />}
 
       {editar && <EditarClienteModal cliente={cliente} onClose={() => setEditar(false)} />}
       {nuevaVenta && <NuevaVentaModal clienteId={cliente.id} onClose={() => setNuevaVenta(false)} />}
+      {nuevaEntrega && <NuevaEntregaInline clienteId={cliente.id} onClose={() => setNuevaEntrega(false)} />}
+      {verRecibos && (
+        <RecibosModal
+          pagos={recibosConFoto}
+          onClose={() => setVerRecibos(false)}
+          onSelect={(url) => { setVerRecibos(false); setVerRecibo(url); }}
+        />
+      )}
+      {confirmDelete && (
+        <ConfirmModal
+          title="¿Eliminar cliente?"
+          desc={`Se eliminará "${cliente.nombre}" y todos sus datos asociados. Esta acción no se puede deshacer.`}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={async () => {
+            try {
+              await api.deleteCliente(cliente.id);
+              toast.success("Cliente eliminado");
+              navigate({ to: "/clientes" });
+            } catch (e: any) {
+              toast.error(e?.message || "Error al eliminar");
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function RecibosModal({
+  pagos,
+  onClose,
+  onSelect,
+}: {
+  pagos: { id: string; reciboFoto?: string; monto: number; fecha: number }[];
+  onClose: () => void;
+  onSelect: (url: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-end" onClick={onClose}>
+      <div className="bg-card w-full max-w-md mx-auto rounded-t-3xl p-6 space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-extrabold">Recibos</h2>
+          <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center"><X className="h-5 w-5" /></button>
+        </div>
+        {pagos.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">Sin recibos cargados</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {pagos.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => onSelect(p.reciboFoto!)}
+                className="rounded-xl overflow-hidden border border-border bg-muted active:scale-95 transition"
+              >
+                <img src={p.reciboFoto} alt="Recibo" className="w-full h-32 object-cover" />
+                <div className="p-2 text-left">
+                  <p className="text-xs font-bold text-green-700">{fmtMoney(p.monto)}</p>
+                  <p className="text-[10px] text-muted-foreground">{fmtDate(p.fecha)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({
+  title,
+  desc,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  desc: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-5" onClick={onCancel}>
+      <div className="bg-card w-full max-w-sm rounded-2xl p-6 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-extrabold">{title}</h2>
+        <p className="text-sm text-muted-foreground">{desc}</p>
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <button onClick={onCancel} className="bg-muted py-3.5 rounded-xl font-bold">Cancelar</button>
+          <button
+            onClick={async () => { setBusy(true); await onConfirm(); }}
+            disabled={busy}
+            className="bg-primary text-white py-3.5 rounded-xl font-bold disabled:opacity-50"
+          >
+            {busy ? "..." : "Eliminar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NuevaEntregaInline({ clienteId, onClose }: { clienteId: string; onClose: () => void }) {
+  const api = useApi();
+  const [producto, setProducto] = useState("");
+  const [cantidad, setCantidad] = useState("1");
+  const [monto, setMonto] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const m = parseFloat(monto);
+    if (!producto.trim() || !m) {
+      toast.error("Completa producto y monto");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.addEntrega({
+        clienteId,
+        producto: producto.trim(),
+        cantidad: parseInt(cantidad) || 1,
+        monto: m,
+        estado: "Pendiente",
+      });
+      toast.success("Entrega creada");
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message || "Error");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-end" onClick={onClose}>
+      <div className="bg-card w-full max-w-md mx-auto rounded-t-3xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-extrabold">Nueva entrega</h2>
+          <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center"><X className="h-5 w-5" /></button>
+        </div>
+        <form onSubmit={submit} className="space-y-3">
+          <Field label="Producto *" value={producto} onChange={setProducto} placeholder="Ej. Bolsas 50kg" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cantidad" value={cantidad} onChange={setCantidad} type="number" />
+            <Field label="Monto *" value={monto} onChange={setMonto} type="number" placeholder="0.00" />
+          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full bg-primary text-white font-bold py-4 rounded-xl text-base mt-2 active:scale-[0.98] transition shadow-[var(--shadow-red)] disabled:opacity-50"
+          >
+            {saving ? "GUARDANDO..." : "REGISTRAR ENTREGA"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -259,26 +433,51 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
   const api = useApi();
   const [producto, setProducto] = useState("");
   const [cantidad, setCantidad] = useState("1");
-  const [monto, setMonto] = useState("");
+  const [precio, setPrecio] = useState("");
+  const [tipoPago, setTipoPago] = useState<"contado" | "credito" | "parcial">("credito");
+  const [pagoInicial, setPagoInicial] = useState("");
   const [vence, setVence] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const cant = parseInt(cantidad) || 0;
+  const pu = parseFloat(precio) || 0;
+  const total = cant * pu;
+  const inicial = tipoPago === "contado" ? total : tipoPago === "parcial" ? parseFloat(pagoInicial) || 0 : 0;
+  const restante = Math.max(0, total - inicial);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!producto.trim() || !monto) return;
+    if (!producto.trim() || !total) {
+      toast.error("Completa producto, cantidad y precio");
+      return;
+    }
+    if (tipoPago === "parcial" && inicial <= 0) {
+      toast.error("Ingresa el pago inicial");
+      return;
+    }
     setSaving(true);
     try {
-      await api.addEntrega({
+      const entrega = await api.addEntrega({
         clienteId,
         producto: producto.trim(),
-        cantidad: parseInt(cantidad) || 1,
-        monto: parseFloat(monto),
+        cantidad: cant || 1,
+        monto: total,
         estado: "Pendiente",
-        fechaVencimiento: vence ? new Date(vence).getTime() : undefined,
+        fechaVencimiento:
+          tipoPago !== "contado" && vence ? new Date(vence).getTime() : undefined,
       });
+      if (inicial > 0) {
+        await api.addPago({
+          clienteId,
+          monto: inicial,
+          metodo: "Efectivo",
+          nota: `Pago ${tipoPago === "contado" ? "de contado" : "inicial"} venta ${entrega.producto}`,
+        });
+      }
+      toast.success("Venta registrada");
       onClose();
     } catch (e: any) {
-      alert(e?.message || "Error al guardar");
+      toast.error(e?.message || "Error al guardar");
     } finally {
       setSaving(false);
     }
@@ -286,7 +485,7 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-extrabold">Nueva venta</h2>
           <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
@@ -294,12 +493,49 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
           </button>
         </div>
         <form onSubmit={submit} className="space-y-3">
-          <Field label="Producto *" value={producto} onChange={setProducto} placeholder="Ej. Garrafón 20L" />
+          <Field label="Producto *" value={producto} onChange={setProducto} placeholder="Ej. Bolsa 50kg" />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Cantidad" value={cantidad} onChange={setCantidad} type="number" />
-            <Field label="Monto total *" value={monto} onChange={setMonto} type="number" placeholder="0.00" />
+            <Field label="Cant. bolsas" value={cantidad} onChange={setCantidad} type="number" />
+            <Field label="Precio unit. *" value={precio} onChange={setPrecio} type="number" placeholder="0.00" />
           </div>
-          <Field label="Vence (opcional)" value={vence} onChange={setVence} type="date" />
+
+          <div className="bg-muted rounded-xl p-3 flex justify-between">
+            <span className="text-sm text-muted-foreground">Total</span>
+            <span className="font-extrabold text-lg">{fmtMoney(total)}</span>
+          </div>
+
+          <div>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Tipo de pago</label>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {(["contado", "credito", "parcial"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTipoPago(t)}
+                  className={`py-3 rounded-xl text-sm font-bold border-2 transition ${
+                    tipoPago === t ? "bg-brand-black text-white border-brand-black" : "bg-card border-border"
+                  }`}
+                >
+                  {t === "contado" ? "Contado" : t === "credito" ? "Crédito" : "Parcial"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {tipoPago === "parcial" && (
+            <Field label="Pago inicial *" value={pagoInicial} onChange={setPagoInicial} type="number" placeholder="0.00" />
+          )}
+
+          {tipoPago !== "contado" && (
+            <>
+              <Field label="Vence" value={vence} onChange={setVence} type="date" />
+              <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 flex justify-between">
+                <span className="text-sm">Saldo a deber</span>
+                <span className="font-extrabold text-primary">{fmtMoney(restante)}</span>
+              </div>
+            </>
+          )}
+
           <button
             type="submit"
             disabled={saving}
