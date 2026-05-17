@@ -16,30 +16,48 @@ export type Database = {
     Tables: {
       customers: {
         Row: {
+          additional_info: string | null
           address: string
+          business_notes: string | null
+          ci: string | null
           created_at: string
+          customer_type: string | null
           full_name: string
           id: string
+          nit: string | null
           notes: string | null
           phone: string
+          phone_secondary: string | null
           user_id: string
         }
         Insert: {
+          additional_info?: string | null
           address?: string
+          business_notes?: string | null
+          ci?: string | null
           created_at?: string
+          customer_type?: string | null
           full_name: string
           id?: string
+          nit?: string | null
           notes?: string | null
           phone?: string
+          phone_secondary?: string | null
           user_id: string
         }
         Update: {
+          additional_info?: string | null
           address?: string
+          business_notes?: string | null
+          ci?: string | null
           created_at?: string
+          customer_type?: string | null
           full_name?: string
           id?: string
+          nit?: string | null
           notes?: string | null
           phone?: string
+          phone_secondary?: string | null
           user_id?: string
         }
         Relationships: []
@@ -99,6 +117,8 @@ export type Database = {
           delivery_photo_url: string | null
           due_date: string | null
           id: string
+          order_date: string | null
+          payment_date: string | null
           product: string
           quantity: number
           status: Database["public"]["Enums"]["delivery_status"]
@@ -112,6 +132,8 @@ export type Database = {
           delivery_photo_url?: string | null
           due_date?: string | null
           id?: string
+          order_date?: string | null
+          payment_date?: string | null
           product: string
           quantity?: number
           status?: Database["public"]["Enums"]["delivery_status"]
@@ -125,6 +147,8 @@ export type Database = {
           delivery_photo_url?: string | null
           due_date?: string | null
           id?: string
+          order_date?: string | null
+          payment_date?: string | null
           product?: string
           quantity?: number
           status?: Database["public"]["Enums"]["delivery_status"]
@@ -222,7 +246,14 @@ export type Database = {
     Enums: {
       debt_status: "Pendiente" | "Parcial" | "Pagado" | "Vencido"
       delivery_status: "Pendiente" | "En camino" | "Entregado"
-      payment_method: "Efectivo" | "Transferencia" | "Tarjeta" | "Otro"
+      payment_method:
+        | "Efectivo"
+        | "Transferencia"
+        | "Tarjeta"
+        | "Otro"
+        | "QR"
+        | "Crédito"
+        | "Mixto"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -352,7 +383,15 @@ export const Constants = {
     Enums: {
       debt_status: ["Pendiente", "Parcial", "Pagado", "Vencido"],
       delivery_status: ["Pendiente", "En camino", "Entregado"],
-      payment_method: ["Efectivo", "Transferencia", "Tarjeta", "Otro"],
+      payment_method: [
+        "Efectivo",
+        "Transferencia",
+        "Tarjeta",
+        "Otro",
+        "QR",
+        "Crédito",
+        "Mixto",
+      ],
     },
   },
 } as const
