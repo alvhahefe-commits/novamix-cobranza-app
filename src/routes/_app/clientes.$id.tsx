@@ -474,6 +474,10 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
   const [tipoPago, setTipoPago] = useState<"contado" | "credito" | "parcial">("credito");
   const [pagoInicial, setPagoInicial] = useState("");
   const [vence, setVence] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
+  const [fechaPedido, setFechaPedido] = useState(today);
+  const [fechaEntrega, setFechaEntrega] = useState(today);
+  const [fechaPago, setFechaPago] = useState(today);
   const [saving, setSaving] = useState(false);
 
   const cant = parseInt(cantidad) || 0;
@@ -502,6 +506,9 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
         estado: "Pendiente",
         fechaVencimiento:
           tipoPago !== "contado" && vence ? new Date(vence).getTime() : undefined,
+        fecha: new Date(fechaEntrega).getTime(),
+        fechaPedido: new Date(fechaPedido).getTime(),
+        fechaPago: tipoPago !== "credito" ? new Date(fechaPago).getTime() : undefined,
       });
       if (inicial > 0) {
         await api.addPago({
@@ -509,6 +516,7 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
           monto: inicial,
           metodo: "Efectivo",
           nota: `Pago ${tipoPago === "contado" ? "de contado" : "inicial"} venta ${entrega.producto}`,
+          fecha: new Date(fechaPago).getTime(),
         });
       }
       toast.success("Venta registrada");
@@ -539,6 +547,11 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
           <div className="bg-muted rounded-xl p-3 flex justify-between">
             <span className="text-sm text-muted-foreground">Total</span>
             <span className="font-extrabold text-lg">{fmtMoney(total)}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Fecha pedido" value={fechaPedido} onChange={setFechaPedido} type="date" />
+            <Field label="Fecha entrega" value={fechaEntrega} onChange={setFechaEntrega} type="date" />
           </div>
 
           <div>
