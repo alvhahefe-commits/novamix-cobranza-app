@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, totalDeudaCliente, fmtMoney, useApi, uploadReceiptPhoto, type Pago } from "@/lib/store";
+import { useDB, totalDeudaCliente, fmtMoney, useApi, uploadReceiptPhoto, METODOS_PAGO, type MetodoPago } from "@/lib/store";
 import { ArrowLeft } from "lucide-react";
 import { PhotoPicker } from "@/components/PhotoPicker";
 import { toast } from "sonner";
@@ -16,8 +16,9 @@ function PagoScreen() {
   const navigate = useNavigate();
   const cliente = db.clientes.find((c) => c.id === clienteId);
   const [monto, setMonto] = useState("");
-  const [metodo, setMetodo] = useState<Pago["metodo"]>("Efectivo");
+  const [metodo, setMetodo] = useState<MetodoPago>("Efectivo");
   const [nota, setNota] = useState("");
+  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [foto, setFoto] = useState<string | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -47,6 +48,7 @@ function PagoScreen() {
         metodo,
         nota: nota || undefined,
         reciboFoto: reciboUrl,
+        fecha: new Date(fecha).getTime(),
       });
       toast.success("Pago registrado");
       navigate({ to: "/recibo/$pagoId", params: { pagoId: pago.id } });
@@ -56,7 +58,7 @@ function PagoScreen() {
     }
   };
 
-  const metodos: Pago["metodo"][] = ["Efectivo", "Transferencia", "Tarjeta", "Otro"];
+  const metodos = METODOS_PAGO;
 
   return (
     <div className="min-h-screen">
@@ -95,13 +97,13 @@ function PagoScreen() {
 
         <div>
           <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Método de pago</label>
-          <div className="grid grid-cols-2 gap-2 mt-2">
+          <div className="grid grid-cols-3 gap-2 mt-2">
             {metodos.map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => setMetodo(m)}
-                className={`py-3 rounded-xl font-semibold border-2 transition ${
+                className={`py-3 rounded-xl text-sm font-semibold border-2 transition ${
                   metodo === m ? "bg-brand-black text-white border-brand-black" : "bg-card border-border text-foreground"
                 }`}
               >
@@ -109,6 +111,16 @@ function PagoScreen() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Fecha de pago</label>
+          <input
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className="mt-2 w-full bg-card border-2 border-border rounded-xl px-4 py-4 text-base font-semibold focus:outline-none focus:border-primary"
+          />
         </div>
 
         <PhotoPicker
