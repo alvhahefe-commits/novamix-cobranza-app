@@ -373,14 +373,20 @@ function EditarClienteModal({
   cliente,
   onClose,
 }: {
-  cliente: { id: string; nombre: string; telefono: string; direccion: string; notas?: string };
+  cliente: Cliente;
   onClose: () => void;
 }) {
   const api = useApi();
   const [nombre, setNombre] = useState(cliente.nombre);
   const [telefono, setTelefono] = useState(cliente.telefono);
+  const [telefono2, setTelefono2] = useState(cliente.telefono2 ?? "");
   const [direccion, setDireccion] = useState(cliente.direccion);
   const [notas, setNotas] = useState(cliente.notas ?? "");
+  const [tipo, setTipo] = useState<CustomerType>(cliente.tipo ?? "Particular");
+  const [nit, setNit] = useState(cliente.nit ?? "");
+  const [ci, setCi] = useState(cliente.ci ?? "");
+  const [notasNegocio, setNotasNegocio] = useState(cliente.notasNegocio ?? "");
+  const [infoAdicional, setInfoAdicional] = useState(cliente.infoAdicional ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -391,12 +397,19 @@ function EditarClienteModal({
       await api.updateCliente(cliente.id, {
         nombre: nombre.trim(),
         telefono: telefono.trim(),
+        telefono2: telefono2.trim(),
         direccion: direccion.trim(),
         notas: notas.trim() || undefined,
+        tipo,
+        nit: nit.trim(),
+        ci: ci.trim(),
+        notasNegocio: notasNegocio.trim(),
+        infoAdicional: infoAdicional.trim(),
       });
+      toast.success("Cliente actualizado");
       onClose();
     } catch (e: any) {
-      alert(e?.message || "Error al guardar");
+      toast.error(e?.message || "Error al guardar");
     } finally {
       setSaving(false);
     }
@@ -404,7 +417,7 @@ function EditarClienteModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-extrabold">Editar cliente</h2>
           <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
@@ -413,8 +426,32 @@ function EditarClienteModal({
         </div>
         <form onSubmit={submit} className="space-y-3">
           <Field label="Nombre *" value={nombre} onChange={setNombre} />
-          <Field label="Teléfono" value={telefono} onChange={setTelefono} type="tel" />
+          <div>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Tipo</label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {CUSTOMER_TYPES.map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTipo(t)}
+                  className={`py-2.5 rounded-xl text-sm font-bold border-2 transition ${
+                    tipo === t ? "bg-brand-black text-white border-brand-black" : "bg-card border-border"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Field label="Teléfono principal" value={telefono} onChange={setTelefono} type="tel" />
+          <Field label="Teléfono secundario" value={telefono2} onChange={setTelefono2} type="tel" />
           <Field label="Dirección" value={direccion} onChange={setDireccion} />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="NIT" value={nit} onChange={setNit} />
+            <Field label="CI" value={ci} onChange={setCi} />
+          </div>
+          <Field label="Notas del negocio" value={notasNegocio} onChange={setNotasNegocio} />
+          <Field label="Información adicional" value={infoAdicional} onChange={setInfoAdicional} />
           <Field label="Notas" value={notas} onChange={setNotas} />
           <button
             type="submit"
