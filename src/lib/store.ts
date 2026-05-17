@@ -231,6 +231,209 @@ export async function uploadReceiptPhoto(file: File): Promise<string | null> {
   return data.publicUrl;
 }
 
+// ---------- Offline queue ----------
+type PendingOp =
+  | { kind: "addCliente"; payload: ClienteInput; tempId: string }
+  | { kind: "updateCliente"; id: string; payload: ClienteInput }
+  | { kind: "addPago"; payload: PagoInput; tempId: string }
+  | { kind: "addEntrega"; payload: EntregaInput; tempId: string };
+
+type ClienteInput = {
+  nombre: string;
+  telefono: string;
+  telefono2?: string;
+  direccion: string;
+  notas?: string;
+  tipo?: CustomerType;
+  nit?: string;
+  ci?: string;
+  notasNegocio?: string;
+  infoAdicional?: string;
+};
+type PagoInput = {
+  clienteId: string;
+  monto: number;
+  metodo: MetodoPago;
+  reciboFoto?: string;
+  nota?: string;
+  fecha?: number;
+};
+type EntregaInput = {
+  clienteId: string;
+  producto: string;
+  cantidad: number;
+  monto: number;
+  estado: Entrega["estado"];
+  fechaVencimiento?: number;
+  fecha?: number;
+  fechaPedido?: number;
+  fechaPago?: number;
+};
+
+const QUEUE_KEY = "novamix.queue.v1";
+
+function readQueue(): PendingOp[] {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+function writeQueue(q: PendingOp[]) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+}
+function enqueue(op: PendingOp) {
+  const q = readQueue();
+  q.push(op);
+  writeQueue(q);
+}
+
+export function pendingOpsCount() {
+  return readQueue().length;
+}
+
+async function execOp(op: PendingOp, userId: string): Promise<boolean> {
+  try {
+    if (op.kind === "addCliente") {
+      const p = op.payload;
+      const { error } = await supabase.from("customers").insert({
+        user_id: userId,
+        full_name: p.nombre,
+        phone: p.telefono,
+        phone_secondary: p.telefono2 ?? "",
+        address: p.direccion,
+        notes: p.notas,
+        customer_type: p.tipo ?? "Particular",
+        nit: p.nit ?? "",
+        ci: p.ci ?? "",
+        business_notes: p.notasNegocio ?? "",
+        additional_info: p.infoAdicional ?? "",
+      });
+      if (error) throw error;
+    } else if (op.kind === "updateCliente") {
+      const p = op.payload;
+      const { error } = await supabase.from("customers").update({
+        full_name: p.nombre,
+        phone: p.telefono,
+        phone_secondary: p.telefono2 ?? "",
+        address: p.direccion,
+        notes: p.notas,
+        customer_type: p.tipo ?? "Particular",
+        nit: p.nit ?? "",
+        ci: p.ci ?? "",
+        business_notes: p.notasNegocio ?? "",
+        additional_info: p.infoAdicional ?? "",
+      }).eq("id", op.id);
+      if (error) throw error;
+    } else if (op.kind === "addPago") {
+      const p = op.payload;
+      const { error } = await supabase.from("payments").insert({
+        user_id: userId,
+        customer_id: p.clienteId,
+        amount: p.monto,
+        method: p.metodo,
+        receipt_photo_url: p.reciboFoto,
+        notes: p.nota,
+        payment_date: p.fecha ? new Date(p.fecha).toISOString() : new Date().toISOString(),
+      });
+      if (error) throw error;
+    } else if (op.kind === "addEntrega") {
+      const p = op.payload;
+      const { error } = await supabase.from("deliveries").insert({
+        user_id: userId,
+        customer_id: p.clienteId,
+        product: p.producto,
+        quantity: p.cantidad,
+        total_amount: p.monto,
+        status: p.estado,
+        delivery_date: p.fecha ? new Date(p.fecha).toISOString() : new Date().toISOString(),
+        due_date: p.fechaVencimiento ? new Date(p.fechaVencimiento).toISOString() : null,
+        order_date: p.fechaPedido ? new Date(p.fechaPedido).toISOString() : null,
+        payment_date: p.fechaPago ? new Date(p.fechaPago).toISOString() : null,
+      });
+      if (error) throw error;
+    }
+    return true;
+  } catch (e) {
+    console.warn("execOp failed", e);
+    return false;
+  }
+}
+
+export async function flushQueue(userId: string | null) {
+  if (!userId) return 0;
+  const q = readQueue();
+  if (!q.length) return 0;
+  const remaining: PendingOp[] = [];
+  let done = 0;
+  for (const op of q) {
+    const ok = await execOp(op, userId);
+    if (ok) done++;
+    else remaining.push(op);
+  }
+  writeQueue(remaining);
+  return done;
+}
+
+// ---------- Realtime + Offline sync hook ----------
+export function useRealtimeSync() {
+  const auth = useAuth();
+  const qc = useQueryClient();
+  const userId = auth.userId;
+
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`novamix-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, () => qc.invalidateQueries({ queryKey: ["clientes"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => qc.invalidateQueries({ queryKey: ["pagos"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => qc.invalidateQueries({ queryKey: ["entregas"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "debts" }, () => qc.invalidateQueries({ queryKey: ["debts"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => qc.invalidateQueries({ queryKey: ["productos"] }))
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, qc]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const tryFlush = async () => {
+      const n = await flushQueue(userId);
+      if (n > 0) {
+        qc.invalidateQueries({ queryKey: ["clientes"] });
+        qc.invalidateQueries({ queryKey: ["pagos"] });
+        qc.invalidateQueries({ queryKey: ["entregas"] });
+      }
+    };
+    tryFlush();
+    const onOnline = () => tryFlush();
+    window.addEventListener("online", onOnline);
+    const id = window.setInterval(tryFlush, 30000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.clearInterval(id);
+    };
+  }, [userId, qc]);
+}
+
+export function useOnlineStatus() {
+  const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
+  return online;
+}
+
 // ---------- Mutations API ----------
 export function useApi() {
   const qc = useQueryClient();
@@ -256,17 +459,30 @@ export function useApi() {
       await supabase.auth.signOut();
       qc.clear();
     },
-    async addCliente(c: { nombre: string; telefono: string; direccion: string; notas?: string }) {
+    async addCliente(c: ClienteInput) {
       const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Sin sesión");
+      const uid = u.user?.id;
+      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (offline || !uid) {
+        const tempId = `tmp-${Date.now()}`;
+        enqueue({ kind: "addCliente", payload: c, tempId });
+        invalidate("clientes");
+        return { id: tempId, ...c, createdAt: Date.now() } as any;
+      }
       const { data, error } = await supabase
         .from("customers")
         .insert({
-          user_id: u.user.id,
+          user_id: uid,
           full_name: c.nombre,
           phone: c.telefono,
+          phone_secondary: c.telefono2 ?? "",
           address: c.direccion,
           notes: c.notas,
+          customer_type: c.tipo ?? "Particular",
+          nit: c.nit ?? "",
+          ci: c.ci ?? "",
+          business_notes: c.notasNegocio ?? "",
+          additional_info: c.infoAdicional ?? "",
         })
         .select()
         .single();
@@ -274,14 +490,26 @@ export function useApi() {
       invalidate("clientes");
       return mapCliente(data);
     },
-    async updateCliente(id: string, c: { nombre: string; telefono: string; direccion: string; notas?: string }) {
+    async updateCliente(id: string, c: ClienteInput) {
+      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (offline) {
+        enqueue({ kind: "updateCliente", id, payload: c });
+        invalidate("clientes");
+        return;
+      }
       const { error } = await supabase
         .from("customers")
         .update({
           full_name: c.nombre,
           phone: c.telefono,
+          phone_secondary: c.telefono2 ?? "",
           address: c.direccion,
           notes: c.notas,
+          customer_type: c.tipo ?? "Particular",
+          nit: c.nit ?? "",
+          ci: c.ci ?? "",
+          business_notes: c.notasNegocio ?? "",
+          additional_info: c.infoAdicional ?? "",
         })
         .eq("id", id);
       if (error) throw error;
@@ -294,24 +522,26 @@ export function useApi() {
       invalidate("pagos");
       invalidate("entregas");
     },
-    async addPago(p: {
-      clienteId: string;
-      monto: number;
-      metodo: Pago["metodo"];
-      reciboFoto?: string;
-      nota?: string;
-    }): Promise<Pago> {
+    async addPago(p: PagoInput): Promise<Pago> {
       const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Sin sesión");
+      const uid = u.user?.id;
+      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (offline || !uid) {
+        const tempId = `tmp-${Date.now()}`;
+        enqueue({ kind: "addPago", payload: p, tempId });
+        invalidate("pagos");
+        return { id: tempId, clienteId: p.clienteId, monto: p.monto, metodo: p.metodo, fecha: p.fecha ?? Date.now(), reciboFoto: p.reciboFoto, nota: p.nota };
+      }
       const { data, error } = await supabase
         .from("payments")
         .insert({
-          user_id: u.user.id,
+          user_id: uid,
           customer_id: p.clienteId,
           amount: p.monto,
           method: p.metodo,
           receipt_photo_url: p.reciboFoto,
           notes: p.nota,
+          payment_date: p.fecha ? new Date(p.fecha).toISOString() : new Date().toISOString(),
         })
         .select()
         .single();
@@ -319,26 +549,40 @@ export function useApi() {
       invalidate("pagos");
       return mapPago(data);
     },
-    async addEntrega(e: {
-      clienteId: string;
-      producto: string;
-      cantidad: number;
-      monto: number;
-      estado: Entrega["estado"];
-      fechaVencimiento?: number;
-    }) {
+    async addEntrega(e: EntregaInput) {
       const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Sin sesión");
+      const uid = u.user?.id;
+      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (offline || !uid) {
+        const tempId = `tmp-${Date.now()}`;
+        enqueue({ kind: "addEntrega", payload: e, tempId });
+        invalidate("entregas");
+        return {
+          id: tempId,
+          clienteId: e.clienteId,
+          producto: e.producto,
+          cantidad: e.cantidad,
+          monto: e.monto,
+          estado: e.estado,
+          fecha: e.fecha ?? Date.now(),
+          fechaVencimiento: e.fechaVencimiento,
+          fechaPedido: e.fechaPedido,
+          fechaPago: e.fechaPago,
+        } as Entrega;
+      }
       const { data, error } = await supabase
         .from("deliveries")
         .insert({
-          user_id: u.user.id,
+          user_id: uid,
           customer_id: e.clienteId,
           product: e.producto,
           quantity: e.cantidad,
           total_amount: e.monto,
           status: e.estado,
+          delivery_date: e.fecha ? new Date(e.fecha).toISOString() : new Date().toISOString(),
           due_date: e.fechaVencimiento ? new Date(e.fechaVencimiento).toISOString() : null,
+          order_date: e.fechaPedido ? new Date(e.fechaPedido).toISOString() : null,
+          payment_date: e.fechaPago ? new Date(e.fechaPago).toISOString() : null,
         })
         .select()
         .single();
