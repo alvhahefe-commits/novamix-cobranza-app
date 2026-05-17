@@ -181,13 +181,16 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
   const [producto, setProducto] = useState("");
   const [cantidad, setCantidad] = useState("1");
   const [monto, setMonto] = useState("");
-  const [dias, setDias] = useState("15");
+  const today = new Date().toISOString().slice(0, 10);
+  const in15 = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
+  const [fechaPedido, setFechaPedido] = useState(today);
+  const [fechaEntrega, setFechaEntrega] = useState(today);
+  const [vence, setVence] = useState(in15);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const m = parseFloat(monto);
     if (!clienteId || !producto.trim() || !m) return;
-    const d = parseInt(dias) || 0;
     try {
       await api.addEntrega({
         clienteId,
@@ -195,7 +198,9 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
         cantidad: parseInt(cantidad) || 1,
         monto: m,
         estado: "Pendiente",
-        fechaVencimiento: Date.now() + d * 86400000,
+        fecha: new Date(fechaEntrega).getTime(),
+        fechaPedido: new Date(fechaPedido).getTime(),
+        fechaVencimiento: vence ? new Date(vence).getTime() : undefined,
       });
       onClose();
     } catch (e: any) {
@@ -227,8 +232,16 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
               <input type="number" inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="0.00" className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary" />
             </Field>
           </div>
-          <Field label="Vence en (días)">
-            <input type="number" value={dias} onChange={(e) => setDias(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Fecha pedido">
+              <input type="date" value={fechaPedido} onChange={(e) => setFechaPedido(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary" />
+            </Field>
+            <Field label="Fecha entrega">
+              <input type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary" />
+            </Field>
+          </div>
+          <Field label="Vence">
+            <input type="date" value={vence} onChange={(e) => setVence(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary" />
           </Field>
           <button type="submit" className="w-full bg-primary text-white font-bold py-4 rounded-xl mt-2 active:scale-[0.98] transition shadow-[var(--shadow-red)]">REGISTRAR ENTREGA</button>
         </form>
