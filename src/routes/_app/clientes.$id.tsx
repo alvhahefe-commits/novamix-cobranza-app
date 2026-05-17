@@ -573,7 +573,13 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
           </div>
 
           {tipoPago === "parcial" && (
-            <Field label="Pago inicial *" value={pagoInicial} onChange={setPagoInicial} type="number" placeholder="0.00" />
+            <>
+              <Field label="Pago inicial *" value={pagoInicial} onChange={setPagoInicial} type="number" placeholder="0.00" />
+              <Field label="Fecha de pago" value={fechaPago} onChange={setFechaPago} type="date" />
+            </>
+          )}
+          {tipoPago === "contado" && (
+            <Field label="Fecha de pago" value={fechaPago} onChange={setFechaPago} type="date" />
           )}
 
           {tipoPago !== "contado" && (
