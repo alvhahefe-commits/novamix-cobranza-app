@@ -1,7 +1,7 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Users, Truck, BarChart3, LogOut, DollarSign, AlertTriangle, MessageCircle } from "lucide-react";
-import { useAuth, useApi } from "@/lib/store";
-import { useEffect } from "react";
+import { Users, Truck, BarChart3, LogOut, DollarSign, AlertTriangle, MessageCircle, WifiOff } from "lucide-react";
+import { useAuth, useApi, useRealtimeSync, useOnlineStatus, pendingOpsCount } from "@/lib/store";
+import { useEffect, useState } from "react";
 
 const tabs = [
   { to: "/clientes", label: "Clientes", icon: Users },
@@ -16,6 +16,16 @@ export function AppShell() {
   const api = useApi();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const online = useOnlineStatus();
+  const [pending, setPending] = useState(0);
+  useRealtimeSync();
+
+  useEffect(() => {
+    const tick = () => setPending(pendingOpsCount());
+    tick();
+    const id = window.setInterval(tick, 4000);
+    return () => window.clearInterval(id);
+  }, [online]);
 
   useEffect(() => {
     if (auth.ready && !auth.user) navigate({ to: "/" });
@@ -27,6 +37,12 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
+      {(!online || pending > 0) && (
+        <div className="sticky top-0 z-40 bg-amber-500 text-black text-xs font-bold px-4 py-1.5 flex items-center justify-center gap-2">
+          <WifiOff className="h-3.5 w-3.5" />
+          {!online ? "Sin conexión — guardando localmente" : `Sincronizando ${pending} cambio${pending === 1 ? "" : "s"}...`}
+        </div>
+      )}
       <header className="sticky top-0 z-30 bg-brand-black text-white px-5 py-4 flex items-center justify-between shadow-lg border-b border-white/5">
         <Link to="/dashboard" className="flex items-center gap-2.5">
           <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center font-extrabold text-white text-lg shadow-[var(--shadow-red)]">N</div>

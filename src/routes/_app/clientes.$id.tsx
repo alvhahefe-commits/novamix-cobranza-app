@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, useApi, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate } from "@/lib/store";
+import { useDB, useApi, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate, CUSTOMER_TYPES, type CustomerType, type Cliente } from "@/lib/store";
 import { ArrowLeft, MessageCircle, Phone, MapPin, DollarSign, Plus, FileText, Pencil, ShoppingCart, X, Truck, Receipt, Trash2 } from "lucide-react";
 import { ImageViewer } from "@/components/PhotoPicker";
 import { toast } from "sonner";
@@ -47,13 +47,28 @@ function ClienteDetalle() {
         <button onClick={() => navigate({ to: "/clientes" })} className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center mb-3">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-2xl font-extrabold">{cliente.nombre}</h1>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="text-2xl font-extrabold">{cliente.nombre}</h1>
+          {cliente.tipo && (
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-white/15 px-2 py-1 rounded-full whitespace-nowrap">{cliente.tipo}</span>
+          )}
+        </div>
         <div className="mt-1 space-y-1 text-sm text-white/80">
           {cliente.telefono && (
             <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" />{cliente.telefono}</p>
           )}
+          {cliente.telefono2 && (
+            <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" />{cliente.telefono2}</p>
+          )}
           {cliente.direccion && (
             <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" />{cliente.direccion}</p>
+          )}
+          {(cliente.nit || cliente.ci) && (
+            <p className="text-xs text-white/70">
+              {cliente.nit && <>NIT: <span className="font-semibold text-white">{cliente.nit}</span></>}
+              {cliente.nit && cliente.ci && " · "}
+              {cliente.ci && <>CI: <span className="font-semibold text-white">{cliente.ci}</span></>}
+            </p>
           )}
         </div>
 
@@ -373,14 +388,20 @@ function EditarClienteModal({
   cliente,
   onClose,
 }: {
-  cliente: { id: string; nombre: string; telefono: string; direccion: string; notas?: string };
+  cliente: Cliente;
   onClose: () => void;
 }) {
   const api = useApi();
   const [nombre, setNombre] = useState(cliente.nombre);
   const [telefono, setTelefono] = useState(cliente.telefono);
+  const [telefono2, setTelefono2] = useState(cliente.telefono2 ?? "");
   const [direccion, setDireccion] = useState(cliente.direccion);
   const [notas, setNotas] = useState(cliente.notas ?? "");
+  const [tipo, setTipo] = useState<CustomerType>(cliente.tipo ?? "Particular");
+  const [nit, setNit] = useState(cliente.nit ?? "");
+  const [ci, setCi] = useState(cliente.ci ?? "");
+  const [notasNegocio, setNotasNegocio] = useState(cliente.notasNegocio ?? "");
+  const [infoAdicional, setInfoAdicional] = useState(cliente.infoAdicional ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -391,12 +412,19 @@ function EditarClienteModal({
       await api.updateCliente(cliente.id, {
         nombre: nombre.trim(),
         telefono: telefono.trim(),
+        telefono2: telefono2.trim(),
         direccion: direccion.trim(),
         notas: notas.trim() || undefined,
+        tipo,
+        nit: nit.trim(),
+        ci: ci.trim(),
+        notasNegocio: notasNegocio.trim(),
+        infoAdicional: infoAdicional.trim(),
       });
+      toast.success("Cliente actualizado");
       onClose();
     } catch (e: any) {
-      alert(e?.message || "Error al guardar");
+      toast.error(e?.message || "Error al guardar");
     } finally {
       setSaving(false);
     }
@@ -404,7 +432,7 @@ function EditarClienteModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-extrabold">Editar cliente</h2>
           <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
@@ -413,8 +441,32 @@ function EditarClienteModal({
         </div>
         <form onSubmit={submit} className="space-y-3">
           <Field label="Nombre *" value={nombre} onChange={setNombre} />
-          <Field label="Teléfono" value={telefono} onChange={setTelefono} type="tel" />
+          <div>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Tipo</label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {CUSTOMER_TYPES.map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTipo(t)}
+                  className={`py-2.5 rounded-xl text-sm font-bold border-2 transition ${
+                    tipo === t ? "bg-brand-black text-white border-brand-black" : "bg-card border-border"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Field label="Teléfono principal" value={telefono} onChange={setTelefono} type="tel" />
+          <Field label="Teléfono secundario" value={telefono2} onChange={setTelefono2} type="tel" />
           <Field label="Dirección" value={direccion} onChange={setDireccion} />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="NIT" value={nit} onChange={setNit} />
+            <Field label="CI" value={ci} onChange={setCi} />
+          </div>
+          <Field label="Notas del negocio" value={notasNegocio} onChange={setNotasNegocio} />
+          <Field label="Información adicional" value={infoAdicional} onChange={setInfoAdicional} />
           <Field label="Notas" value={notas} onChange={setNotas} />
           <button
             type="submit"
@@ -437,6 +489,10 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
   const [tipoPago, setTipoPago] = useState<"contado" | "credito" | "parcial">("credito");
   const [pagoInicial, setPagoInicial] = useState("");
   const [vence, setVence] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
+  const [fechaPedido, setFechaPedido] = useState(today);
+  const [fechaEntrega, setFechaEntrega] = useState(today);
+  const [fechaPago, setFechaPago] = useState(today);
   const [saving, setSaving] = useState(false);
 
   const cant = parseInt(cantidad) || 0;
@@ -465,6 +521,9 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
         estado: "Pendiente",
         fechaVencimiento:
           tipoPago !== "contado" && vence ? new Date(vence).getTime() : undefined,
+        fecha: new Date(fechaEntrega).getTime(),
+        fechaPedido: new Date(fechaPedido).getTime(),
+        fechaPago: tipoPago !== "credito" ? new Date(fechaPago).getTime() : undefined,
       });
       if (inicial > 0) {
         await api.addPago({
@@ -472,6 +531,7 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
           monto: inicial,
           metodo: "Efectivo",
           nota: `Pago ${tipoPago === "contado" ? "de contado" : "inicial"} venta ${entrega.producto}`,
+          fecha: new Date(fechaPago).getTime(),
         });
       }
       toast.success("Venta registrada");
@@ -504,6 +564,11 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
             <span className="font-extrabold text-lg">{fmtMoney(total)}</span>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Fecha pedido" value={fechaPedido} onChange={setFechaPedido} type="date" />
+            <Field label="Fecha entrega" value={fechaEntrega} onChange={setFechaEntrega} type="date" />
+          </div>
+
           <div>
             <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Tipo de pago</label>
             <div className="grid grid-cols-3 gap-2 mt-2">
@@ -523,7 +588,13 @@ function NuevaVentaModal({ clienteId, onClose }: { clienteId: string; onClose: (
           </div>
 
           {tipoPago === "parcial" && (
-            <Field label="Pago inicial *" value={pagoInicial} onChange={setPagoInicial} type="number" placeholder="0.00" />
+            <>
+              <Field label="Pago inicial *" value={pagoInicial} onChange={setPagoInicial} type="number" placeholder="0.00" />
+              <Field label="Fecha de pago" value={fechaPago} onChange={setFechaPago} type="date" />
+            </>
+          )}
+          {tipoPago === "contado" && (
+            <Field label="Fecha de pago" value={fechaPago} onChange={setFechaPago} type="date" />
           )}
 
           {tipoPago !== "contado" && (
