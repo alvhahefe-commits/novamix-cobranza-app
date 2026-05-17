@@ -47,13 +47,28 @@ function ClienteDetalle() {
         <button onClick={() => navigate({ to: "/clientes" })} className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center mb-3">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-2xl font-extrabold">{cliente.nombre}</h1>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="text-2xl font-extrabold">{cliente.nombre}</h1>
+          {cliente.tipo && (
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-white/15 px-2 py-1 rounded-full whitespace-nowrap">{cliente.tipo}</span>
+          )}
+        </div>
         <div className="mt-1 space-y-1 text-sm text-white/80">
           {cliente.telefono && (
             <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" />{cliente.telefono}</p>
           )}
+          {cliente.telefono2 && (
+            <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" />{cliente.telefono2}</p>
+          )}
           {cliente.direccion && (
             <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" />{cliente.direccion}</p>
+          )}
+          {(cliente.nit || cliente.ci) && (
+            <p className="text-xs text-white/70">
+              {cliente.nit && <>NIT: <span className="font-semibold text-white">{cliente.nit}</span></>}
+              {cliente.nit && cliente.ci && " · "}
+              {cliente.ci && <>CI: <span className="font-semibold text-white">{cliente.ci}</span></>}
+            </p>
           )}
         </div>
 
