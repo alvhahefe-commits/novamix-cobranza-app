@@ -98,8 +98,14 @@ function mapCliente(r: any): Cliente {
     id: r.id,
     nombre: r.full_name,
     telefono: r.phone ?? "",
+    telefono2: r.phone_secondary ?? "",
     direccion: r.address ?? "",
     notas: r.notes ?? undefined,
+    tipo: (r.customer_type as CustomerType) ?? "Particular",
+    nit: r.nit ?? "",
+    ci: r.ci ?? "",
+    notasNegocio: r.business_notes ?? "",
+    infoAdicional: r.additional_info ?? "",
     createdAt: new Date(r.created_at).getTime(),
   };
 }
@@ -124,6 +130,8 @@ function mapEntrega(r: any): Entrega {
     estado: r.status,
     fecha: new Date(r.delivery_date).getTime(),
     fechaVencimiento: r.due_date ? new Date(r.due_date).getTime() : undefined,
+    fechaPedido: r.order_date ? new Date(r.order_date).getTime() : undefined,
+    fechaPago: r.payment_date ? new Date(r.payment_date).getTime() : undefined,
     foto: r.delivery_photo_url ?? undefined,
   };
 }
