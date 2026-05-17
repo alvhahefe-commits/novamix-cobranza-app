@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, totalDeudaCliente, tieneVencido, fmtMoney, useApi } from "@/lib/store";
+import { useDB, totalDeudaCliente, tieneVencido, fmtMoney, useApi, CUSTOMER_TYPES, type CustomerType } from "@/lib/store";
 import { Search, Plus, Phone, X, AlertTriangle, DollarSign, Users as UsersIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_app/clientes/")({
@@ -124,23 +124,43 @@ function NuevoClienteModal({ onClose }: { onClose: () => void }) {
   const api = useApi();
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [telefono2, setTelefono2] = useState("");
   const [direccion, setDireccion] = useState("");
+  const [tipo, setTipo] = useState<CustomerType>("Particular");
+  const [nit, setNit] = useState("");
+  const [ci, setCi] = useState("");
+  const [notasNegocio, setNotasNegocio] = useState("");
+  const [infoAdicional, setInfoAdicional] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) return;
+    setSaving(true);
     try {
-      await api.addCliente({ nombre: nombre.trim(), telefono: telefono.trim(), direccion: direccion.trim() });
+      await api.addCliente({
+        nombre: nombre.trim(),
+        telefono: telefono.trim(),
+        telefono2: telefono2.trim(),
+        direccion: direccion.trim(),
+        tipo,
+        nit: nit.trim(),
+        ci: ci.trim(),
+        notasNegocio: notasNegocio.trim(),
+        infoAdicional: infoAdicional.trim(),
+      });
       onClose();
     } catch (e: any) {
       alert(e?.message || "Error al guardar");
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center" onClick={onClose}>
       <div
-        className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4"
+        className="bg-card w-full max-w-md rounded-t-3xl p-6 space-y-4 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -151,10 +171,34 @@ function NuevoClienteModal({ onClose }: { onClose: () => void }) {
         </div>
         <form onSubmit={submit} className="space-y-3">
           <Input label="Nombre *" value={nombre} onChange={setNombre} placeholder="Nombre completo" />
-          <Input label="Teléfono" value={telefono} onChange={setTelefono} placeholder="55 1234 5678" type="tel" icon={<Phone className="h-4 w-4" />} />
+          <div>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Tipo de cliente</label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {CUSTOMER_TYPES.map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTipo(t)}
+                  className={`py-2.5 rounded-xl text-sm font-bold border-2 transition ${
+                    tipo === t ? "bg-brand-black text-white border-brand-black" : "bg-card border-border"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Input label="Teléfono principal" value={telefono} onChange={setTelefono} placeholder="55 1234 5678" type="tel" icon={<Phone className="h-4 w-4" />} />
+          <Input label="Teléfono secundario" value={telefono2} onChange={setTelefono2} placeholder="Opcional" type="tel" icon={<Phone className="h-4 w-4" />} />
           <Input label="Dirección" value={direccion} onChange={setDireccion} placeholder="Calle y número" />
-          <button type="submit" className="w-full bg-primary text-white font-bold py-4 rounded-xl text-base mt-2 active:scale-[0.98] transition shadow-[var(--shadow-red)]">
-            GUARDAR
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="NIT" value={nit} onChange={setNit} placeholder="Opcional" />
+            <Input label="CI" value={ci} onChange={setCi} placeholder="Opcional" />
+          </div>
+          <Input label="Notas del negocio" value={notasNegocio} onChange={setNotasNegocio} placeholder="Opcional" />
+          <Input label="Información adicional" value={infoAdicional} onChange={setInfoAdicional} placeholder="Opcional" />
+          <button type="submit" disabled={saving} className="w-full bg-primary text-white font-bold py-4 rounded-xl text-base mt-2 active:scale-[0.98] transition shadow-[var(--shadow-red)] disabled:opacity-50">
+            {saving ? "GUARDANDO..." : "GUARDAR CLIENTE"}
           </button>
         </form>
       </div>
