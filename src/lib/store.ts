@@ -3,20 +3,32 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 
+export type CustomerType = "Ferretería" | "Comercial" | "Constructor" | "Particular";
+export const CUSTOMER_TYPES: CustomerType[] = ["Ferretería", "Comercial", "Constructor", "Particular"];
+
 export type Cliente = {
   id: string;
   nombre: string;
   telefono: string;
+  telefono2?: string;
   direccion: string;
   notas?: string;
+  tipo?: CustomerType;
+  nit?: string;
+  ci?: string;
+  notasNegocio?: string;
+  infoAdicional?: string;
   createdAt: number;
 };
+
+export type MetodoPago = "Efectivo" | "Transferencia" | "QR" | "Crédito" | "Mixto" | "Tarjeta" | "Otro";
+export const METODOS_PAGO: MetodoPago[] = ["Efectivo", "Transferencia", "QR", "Crédito", "Mixto"];
 
 export type Pago = {
   id: string;
   clienteId: string;
   monto: number;
-  metodo: "Efectivo" | "Transferencia" | "Tarjeta" | "Otro";
+  metodo: MetodoPago;
   fecha: number;
   reciboFoto?: string;
   nota?: string;
@@ -31,6 +43,8 @@ export type Entrega = {
   estado: "Pendiente" | "En camino" | "Entregado";
   fecha: number;
   fechaVencimiento?: number;
+  fechaPedido?: number;
+  fechaPago?: number;
   foto?: string;
 };
 
