@@ -53,6 +53,21 @@ export type Producto = {
   nombre: string;
   precio: number;
   stock: number;
+  categoria?: string;
+  stockMinimo?: number;
+  actualizado?: number;
+};
+
+export type MovimientoStock = {
+  id: string;
+  productoId: string;
+  productoNombre: string;
+  tipo: "entrada" | "salida" | "ajuste" | "venta";
+  cantidad: number;
+  stockDespues: number;
+  referencia?: string;
+  notas?: string;
+  fecha: number;
 };
 
 export type DB = {
@@ -60,6 +75,7 @@ export type DB = {
   pagos: Pago[];
   entregas: Entrega[];
   productos: Producto[];
+  movimientos: MovimientoStock[];
   auth: { user: string | null; userId: string | null };
   loading: boolean;
 };
@@ -136,7 +152,28 @@ function mapEntrega(r: any): Entrega {
   };
 }
 function mapProducto(r: any): Producto {
-  return { id: r.id, nombre: r.name, precio: Number(r.price), stock: r.stock };
+  return {
+    id: r.id,
+    nombre: r.name,
+    precio: Number(r.price),
+    stock: r.stock,
+    categoria: r.category ?? "General",
+    stockMinimo: r.min_stock ?? 5,
+    actualizado: r.updated_at ? new Date(r.updated_at).getTime() : undefined,
+  };
+}
+function mapMovimiento(r: any): MovimientoStock {
+  return {
+    id: r.id,
+    productoId: r.product_id,
+    productoNombre: r.product_name,
+    tipo: r.kind,
+    cantidad: r.quantity,
+    stockDespues: r.stock_after,
+    referencia: r.reference ?? undefined,
+    notas: r.notes ?? undefined,
+    fecha: new Date(r.created_at).getTime(),
+  };
 }
 
 // ---------- Data hook ----------
@@ -192,9 +229,23 @@ export function useDB(): DB {
       const { data, error } = await supabase
         .from("products")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("name", { ascending: true });
       if (error) throw error;
       return data.map(mapProducto);
+    },
+  });
+
+  const movimientosQ = useQuery({
+    queryKey: ["movimientos", userId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_movements" as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data as any[]).map(mapMovimiento);
     },
   });
 
@@ -203,6 +254,7 @@ export function useDB(): DB {
     pagos: pagosQ.data ?? [],
     entregas: entregasQ.data ?? [],
     productos: productosQ.data ?? [],
+    movimientos: movimientosQ.data ?? [],
     auth: { user: auth.userLabel, userId },
     loading:
       !auth.ready ||
