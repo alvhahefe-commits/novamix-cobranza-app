@@ -444,6 +444,7 @@ export function useRealtimeSync() {
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => qc.invalidateQueries({ queryKey: ["entregas"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "debts" }, () => qc.invalidateQueries({ queryKey: ["debts"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => qc.invalidateQueries({ queryKey: ["productos"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_movements" }, () => qc.invalidateQueries({ queryKey: ["movimientos"] }))
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
