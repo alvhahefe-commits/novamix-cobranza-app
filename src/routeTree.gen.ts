@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppReportesRouteImport } from './routes/_app/reportes'
 import { Route as AppMorososRouteImport } from './routes/_app/morosos'
+import { Route as AppInventarioRouteImport } from './routes/_app/inventario'
 import { Route as AppEntregasRouteImport } from './routes/_app/entregas'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCobrarRouteImport } from './routes/_app/cobrar'
@@ -39,6 +40,11 @@ const AppReportesRoute = AppReportesRouteImport.update({
 const AppMorososRoute = AppMorososRouteImport.update({
   id: '/morosos',
   path: '/morosos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInventarioRoute = AppInventarioRouteImport.update({
+  id: '/inventario',
+  path: '/inventario',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEntregasRoute = AppEntregasRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/cobrar': typeof AppCobrarRoute
   '/dashboard': typeof AppDashboardRoute
   '/entregas': typeof AppEntregasRoute
+  '/inventario': typeof AppInventarioRoute
   '/morosos': typeof AppMorososRoute
   '/reportes': typeof AppReportesRoute
   '/clientes/$id': typeof AppClientesIdRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/cobrar': typeof AppCobrarRoute
   '/dashboard': typeof AppDashboardRoute
   '/entregas': typeof AppEntregasRoute
+  '/inventario': typeof AppInventarioRoute
   '/morosos': typeof AppMorososRoute
   '/reportes': typeof AppReportesRoute
   '/clientes/$id': typeof AppClientesIdRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/_app/cobrar': typeof AppCobrarRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/entregas': typeof AppEntregasRoute
+  '/_app/inventario': typeof AppInventarioRoute
   '/_app/morosos': typeof AppMorososRoute
   '/_app/reportes': typeof AppReportesRoute
   '/_app/clientes/$id': typeof AppClientesIdRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/cobrar'
     | '/dashboard'
     | '/entregas'
+    | '/inventario'
     | '/morosos'
     | '/reportes'
     | '/clientes/$id'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/cobrar'
     | '/dashboard'
     | '/entregas'
+    | '/inventario'
     | '/morosos'
     | '/reportes'
     | '/clientes/$id'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/_app/cobrar'
     | '/_app/dashboard'
     | '/_app/entregas'
+    | '/_app/inventario'
     | '/_app/morosos'
     | '/_app/reportes'
     | '/_app/clientes/$id'
@@ -197,6 +209,13 @@ declare module '@tanstack/react-router' {
       path: '/morosos'
       fullPath: '/morosos'
       preLoaderRoute: typeof AppMorososRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inventario': {
+      id: '/_app/inventario'
+      path: '/inventario'
+      fullPath: '/inventario'
+      preLoaderRoute: typeof AppInventarioRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/entregas': {
@@ -277,6 +296,7 @@ interface AppRouteChildren {
   AppCobrarRoute: typeof AppCobrarRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppEntregasRoute: typeof AppEntregasRoute
+  AppInventarioRoute: typeof AppInventarioRoute
   AppMorososRoute: typeof AppMorososRoute
   AppReportesRoute: typeof AppReportesRoute
   AppPagoClienteIdRoute: typeof AppPagoClienteIdRoute
@@ -288,6 +308,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCobrarRoute: AppCobrarRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppEntregasRoute: AppEntregasRoute,
+  AppInventarioRoute: AppInventarioRoute,
   AppMorososRoute: AppMorososRoute,
   AppReportesRoute: AppReportesRoute,
   AppPagoClienteIdRoute: AppPagoClienteIdRoute,
@@ -303,3 +324,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
