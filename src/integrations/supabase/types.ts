@@ -211,27 +211,75 @@ export type Database = {
       }
       products: {
         Row: {
+          category: string | null
           created_at: string
           id: string
+          min_stock: number
           name: string
           price: number
           stock: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          min_stock?: number
+          name: string
+          price?: number
+          stock?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          min_stock?: number
+          name?: string
+          price?: number
+          stock?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          notes: string | null
+          product_id: string
+          product_name: string
+          quantity: number
+          reference: string | null
+          stock_after: number
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          name: string
-          price?: number
-          stock?: number
+          kind: string
+          notes?: string | null
+          product_id: string
+          product_name: string
+          quantity: number
+          reference?: string | null
+          stock_after: number
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          name?: string
-          price?: number
-          stock?: number
+          kind?: string
+          notes?: string | null
+          product_id?: string
+          product_name?: string
+          quantity?: number
+          reference?: string | null
+          stock_after?: number
           user_id?: string
         }
         Relationships: []
