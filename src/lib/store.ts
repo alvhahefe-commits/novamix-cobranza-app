@@ -53,6 +53,21 @@ export type Producto = {
   nombre: string;
   precio: number;
   stock: number;
+  categoria?: string;
+  stockMinimo?: number;
+  actualizado?: number;
+};
+
+export type MovimientoStock = {
+  id: string;
+  productoId: string;
+  productoNombre: string;
+  tipo: "entrada" | "salida" | "ajuste" | "venta";
+  cantidad: number;
+  stockDespues: number;
+  referencia?: string;
+  notas?: string;
+  fecha: number;
 };
 
 export type DB = {
@@ -60,6 +75,7 @@ export type DB = {
   pagos: Pago[];
   entregas: Entrega[];
   productos: Producto[];
+  movimientos: MovimientoStock[];
   auth: { user: string | null; userId: string | null };
   loading: boolean;
 };
@@ -136,7 +152,28 @@ function mapEntrega(r: any): Entrega {
   };
 }
 function mapProducto(r: any): Producto {
-  return { id: r.id, nombre: r.name, precio: Number(r.price), stock: r.stock };
+  return {
+    id: r.id,
+    nombre: r.name,
+    precio: Number(r.price),
+    stock: r.stock,
+    categoria: r.category ?? "General",
+    stockMinimo: r.min_stock ?? 5,
+    actualizado: r.updated_at ? new Date(r.updated_at).getTime() : undefined,
+  };
+}
+function mapMovimiento(r: any): MovimientoStock {
+  return {
+    id: r.id,
+    productoId: r.product_id,
+    productoNombre: r.product_name,
+    tipo: r.kind,
+    cantidad: r.quantity,
+    stockDespues: r.stock_after,
+    referencia: r.reference ?? undefined,
+    notas: r.notes ?? undefined,
+    fecha: new Date(r.created_at).getTime(),
+  };
 }
 
 // ---------- Data hook ----------
@@ -192,9 +229,23 @@ export function useDB(): DB {
       const { data, error } = await supabase
         .from("products")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("name", { ascending: true });
       if (error) throw error;
       return data.map(mapProducto);
+    },
+  });
+
+  const movimientosQ = useQuery({
+    queryKey: ["movimientos", userId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_movements" as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data as any[]).map(mapMovimiento);
     },
   });
 
@@ -203,6 +254,7 @@ export function useDB(): DB {
     pagos: pagosQ.data ?? [],
     entregas: entregasQ.data ?? [],
     productos: productosQ.data ?? [],
+    movimientos: movimientosQ.data ?? [],
     auth: { user: auth.userLabel, userId },
     loading:
       !auth.ready ||
@@ -392,6 +444,7 @@ export function useRealtimeSync() {
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => qc.invalidateQueries({ queryKey: ["entregas"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "debts" }, () => qc.invalidateQueries({ queryKey: ["debts"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => qc.invalidateQueries({ queryKey: ["productos"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_movements" }, () => qc.invalidateQueries({ queryKey: ["movimientos"] }))
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -599,6 +652,87 @@ export function useApi() {
       const { error } = await supabase.from("deliveries").update({ delivery_photo_url: url }).eq("id", id);
       if (error) throw error;
       invalidate("entregas");
+    },
+
+    // ---------- Productos / Inventario ----------
+    async addProducto(p: { nombre: string; precio: number; stock: number; categoria?: string; stockMinimo?: number }) {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id;
+      if (!uid) throw new Error("Sesión expirada");
+      const { data, error } = await supabase
+        .from("products")
+        .insert({
+          user_id: uid,
+          name: p.nombre,
+          price: p.precio,
+          stock: p.stock,
+          category: p.categoria ?? "General",
+          min_stock: p.stockMinimo ?? 5,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      if (p.stock > 0) {
+        await supabase.from("stock_movements" as any).insert({
+          user_id: uid,
+          product_id: data.id,
+          product_name: p.nombre,
+          kind: "entrada",
+          quantity: p.stock,
+          stock_after: p.stock,
+          reference: "Stock inicial",
+        });
+      }
+      invalidate("productos");
+      invalidate("movimientos");
+      return mapProducto(data);
+    },
+    async updateProducto(id: string, p: { nombre: string; precio: number; categoria?: string; stockMinimo?: number }) {
+      const { error } = await supabase
+        .from("products")
+        .update({
+          name: p.nombre,
+          price: p.precio,
+          category: p.categoria ?? "General",
+          min_stock: p.stockMinimo ?? 5,
+        })
+        .eq("id", id);
+      if (error) throw error;
+      invalidate("productos");
+    },
+    async deleteProducto(id: string) {
+      const { error } = await supabase.from("products").delete().eq("id", id);
+      if (error) throw error;
+      invalidate("productos");
+    },
+    async ajustarStock(productoId: string, tipo: "entrada" | "salida" | "ajuste" | "venta", cantidad: number, opts?: { referencia?: string; notas?: string }) {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id;
+      if (!uid) throw new Error("Sesión expirada");
+      const { data: prod, error: e1 } = await supabase.from("products").select("*").eq("id", productoId).single();
+      if (e1) throw e1;
+      const actual = prod.stock as number;
+      let nuevo = actual;
+      if (tipo === "entrada") nuevo = actual + cantidad;
+      else if (tipo === "salida" || tipo === "venta") nuevo = actual - cantidad;
+      else if (tipo === "ajuste") nuevo = cantidad;
+      if (nuevo < 0) throw new Error(`Stock insuficiente. Disponible: ${actual}`);
+      const { error: e2 } = await supabase.from("products").update({ stock: nuevo }).eq("id", productoId);
+      if (e2) throw e2;
+      const { error: e3 } = await supabase.from("stock_movements" as any).insert({
+        user_id: uid,
+        product_id: productoId,
+        product_name: prod.name,
+        kind: tipo,
+        quantity: cantidad,
+        stock_after: nuevo,
+        reference: opts?.referencia,
+        notes: opts?.notas,
+      });
+      if (e3) throw e3;
+      invalidate("productos");
+      invalidate("movimientos");
+      return nuevo;
     },
   };
 }

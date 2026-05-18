@@ -178,6 +178,7 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
   const db = useDB();
   const api = useApi();
   const [clienteId, setClienteId] = useState(db.clientes[0]?.id ?? "");
+  const [productoId, setProductoId] = useState<string>("");
   const [producto, setProducto] = useState("");
   const [cantidad, setCantidad] = useState("1");
   const [monto, setMonto] = useState("");
@@ -187,24 +188,47 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
   const [fechaEntrega, setFechaEntrega] = useState(today);
   const [vence, setVence] = useState(in15);
 
+  const onPickProducto = (id: string) => {
+    setProductoId(id);
+    const p = db.productos.find((x) => x.id === id);
+    if (p) {
+      setProducto(p.nombre);
+      const qty = parseInt(cantidad) || 1;
+      setMonto((p.precio * qty).toFixed(2));
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const m = parseFloat(monto);
+    const qty = parseInt(cantidad) || 1;
     if (!clienteId || !producto.trim() || !m) return;
+    const prod = productoId ? db.productos.find((x) => x.id === productoId) : null;
+    if (prod && prod.stock < qty) {
+      toast.error(`Stock insuficiente. Disponible: ${prod.stock}`);
+      return;
+    }
     try {
       await api.addEntrega({
         clienteId,
         producto: producto.trim(),
-        cantidad: parseInt(cantidad) || 1,
+        cantidad: qty,
         monto: m,
         estado: "Pendiente",
         fecha: new Date(fechaEntrega).getTime(),
         fechaPedido: new Date(fechaPedido).getTime(),
         fechaVencimiento: vence ? new Date(vence).getTime() : undefined,
       });
+      if (prod) {
+        try {
+          await api.ajustarStock(prod.id, "venta", qty, { referencia: "Entrega" });
+        } catch (err: any) {
+          toast.error(`Entrega creada, pero stock no actualizado: ${err?.message ?? ""}`);
+        }
+      }
       onClose();
     } catch (e: any) {
-      alert(e?.message || "Error al guardar");
+      toast.error(e?.message || "Error al guardar");
     }
   };
 
@@ -221,6 +245,16 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
               {db.clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
           </Field>
+          {db.productos.length > 0 && (
+            <Field label="Producto del inventario (opcional)">
+              <select value={productoId} onChange={(e) => onPickProducto(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary">
+                <option value="">— Escribir manualmente —</option>
+                {db.productos.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre} (stock {p.stock})</option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label="Producto">
             <input value={producto} onChange={(e) => setProducto(e.target.value)} placeholder="Descripción del producto" className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary" />
           </Field>

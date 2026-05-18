@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useDB, fmtMoney, totalDeudaCliente, tieneVencido, fmtDate } from "@/lib/store";
+import { exportExcel, exportPDF } from "@/lib/exports";
+import { Download } from "lucide-react";
 
 export const Route = createFileRoute("/_app/reportes")({
   component: Reportes,
@@ -33,11 +35,44 @@ function Reportes() {
     .sort((a, b) => b.compras - a.compras)
     .slice(0, 5);
 
+  const ventasTotales = db.entregas.reduce((s, e) => s + e.monto, 0);
+  const cobradoTotal = db.pagos.reduce((s, p) => s + p.monto, 0);
+  const nuevosClientesMes = db.clientes.filter((c) => c.createdAt >= startOfMonth).length;
+  const entregadasHoy = db.entregas.filter((e) => e.estado === "Entregado" && e.fecha >= startOfDay).length;
+
+  const exportar = (tipo: "pdf" | "xlsx") => {
+    const headers = ["Métrica", "Valor"];
+    const rows: (string | number)[][] = [
+      ["Cobrado hoy", fmtMoney(cobradoHoy)],
+      ["Cobrado semana", fmtMoney(cobradoSem)],
+      ["Cobrado mes", fmtMoney(cobradoMes)],
+      ["Ventas hoy", fmtMoney(ventasHoy)],
+      ["Ventas totales", fmtMoney(ventasTotales)],
+      ["Cobrado total", fmtMoney(cobradoTotal)],
+      ["Deuda total", fmtMoney(deudaTotal)],
+      ["Deuda vencida", fmtMoney(deudaVencida)],
+      ["Nuevos clientes (mes)", nuevosClientesMes],
+      ["Entregas confirmadas hoy", entregadasHoy],
+    ];
+    if (tipo === "pdf") exportPDF("Reporte general", headers, rows, "novamix-reporte");
+    else exportExcel("Reporte", headers, rows, "novamix-reporte");
+  };
+
   return (
     <div className="px-5 py-5 space-y-5">
-      <div>
-        <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Análisis</p>
-        <h1 className="text-2xl font-extrabold tracking-tight">Reportes</h1>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Análisis</p>
+          <h1 className="text-2xl font-extrabold tracking-tight">Reportes</h1>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => exportar("pdf")} className="h-10 px-3 rounded-xl bg-card border border-border flex items-center gap-1 text-xs font-bold">
+            <Download className="h-4 w-4" /> PDF
+          </button>
+          <button onClick={() => exportar("xlsx")} className="h-10 px-3 rounded-xl bg-card border border-border flex items-center gap-1 text-xs font-bold">
+            <Download className="h-4 w-4" /> Excel
+          </button>
+        </div>
       </div>
 
       <div className="bg-gradient-to-br from-primary to-brand-red-dark text-white rounded-2xl p-5 shadow-[var(--shadow-red)]">
@@ -52,6 +87,9 @@ function Reportes() {
         <Stat label="Este mes" value={fmtMoney(cobradoMes)} />
         <Stat label="Deuda total" value={fmtMoney(deudaTotal)} />
         <Stat label="Deuda vencida" value={fmtMoney(deudaVencida)} danger />
+        <Stat label="Nuevos clientes" value={String(nuevosClientesMes)} />
+        <Stat label="Ventas totales" value={fmtMoney(ventasTotales)} />
+        <Stat label="Cobrado total" value={fmtMoney(cobradoTotal)} />
       </div>
 
       <section>
