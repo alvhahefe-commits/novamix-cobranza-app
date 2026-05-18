@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useDB, fmtMoney, totalDeudaCliente, tieneVencido } from "@/lib/store";
-import { AlertTriangle, DollarSign, Truck, Users, BarChart3, ArrowRight } from "lucide-react";
+import { AlertTriangle, DollarSign, Truck, Users, BarChart3, ArrowRight, Package } from "lucide-react";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -20,7 +20,9 @@ function Dashboard() {
     { to: "/cobrar", label: "Cobrar", icon: DollarSign, color: "bg-primary" },
     { to: "/clientes", label: "Clientes", icon: Users, color: "bg-card border-2 border-border" },
     { to: "/entregas", label: "Entregas", icon: Truck, color: "bg-card border-2 border-border" },
+    { to: "/inventario", label: "Inventario", icon: Package, color: "bg-card border-2 border-border" },
     { to: "/morosos", label: "Morosos", icon: AlertTriangle, color: "bg-card border-2 border-primary/50" },
+    { to: "/reportes", label: "Reportes", icon: BarChart3, color: "bg-card border-2 border-border" },
   ] as const;
 
   return (
