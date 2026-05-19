@@ -209,6 +209,22 @@ function Inventario() {
       {openNuevo && <ProductoModal onClose={() => setOpenNuevo(false)} />}
       {editar && <ProductoModal producto={editar} onClose={() => setEditar(null)} />}
       {mover && <MovimientoModal producto={mover} onClose={() => setMover(null)} />}
+      <ConfirmDialog
+        open={!!borrar}
+        title={borrar ? `¿Eliminar "${borrar.nombre}"?` : ""}
+        description="El producto y su historial de stock se borrarán permanentemente."
+        requireText="ELIMINAR"
+        onConfirm={async () => {
+          if (!borrar) return;
+          try {
+            await api.deleteProducto(borrar.id);
+            toast.success("Producto eliminado");
+          } catch (e: any) {
+            toast.error(e?.message ?? "Error al eliminar");
+          }
+        }}
+        onClose={() => setBorrar(null)}
+      />
     </div>
   );
 }
