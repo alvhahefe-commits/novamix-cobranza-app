@@ -6,6 +6,66 @@ import type { Session } from "@supabase/supabase-js";
 export type CustomerType = "Ferretería" | "Comercial" | "Constructor" | "Particular";
 export const CUSTOMER_TYPES: CustomerType[] = ["Ferretería", "Comercial", "Constructor", "Particular"];
 
+// ---------- Roles ----------
+export type AppRole = "Administrador" | "Vendedor" | "Chofer";
+export const APP_ROLES: AppRole[] = ["Administrador", "Vendedor", "Chofer"];
+
+const ROLE_RANK: Record<AppRole, number> = { Administrador: 1, Vendedor: 2, Chofer: 3 };
+
+export function useUserRole() {
+  const auth = useAuth();
+  const q = useQuery({
+    queryKey: ["user-role", auth.userId],
+    enabled: !!auth.userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles" as any)
+        .select("role")
+        .eq("user_id", auth.userId!);
+      if (error) throw error;
+      const roles = ((data as any[]) ?? []).map((r) => r.role as AppRole);
+      if (!roles.length) return "Vendedor" as AppRole;
+      roles.sort((a, b) => ROLE_RANK[a] - ROLE_RANK[b]);
+      return roles[0];
+    },
+  });
+  const role: AppRole = q.data ?? "Vendedor";
+  return {
+    role,
+    ready: !!q.data || !auth.userId,
+    isAdmin: role === "Administrador",
+    isVendedor: role === "Vendedor",
+    isChofer: role === "Chofer",
+    canDelete: role === "Administrador",
+    canEditInventory: role === "Administrador",
+    canManageUsers: role === "Administrador",
+    canRegisterSale: role === "Administrador" || role === "Vendedor",
+    canRegisterPayment: role === "Administrador" || role === "Vendedor",
+    canUpdateDelivery: true, // todos los roles activos pueden actualizar entregas
+  };
+}
+
+// ---------- Activity log ----------
+export async function logActivity(action: string, entity: string, opts?: { entityId?: string; description?: string; metadata?: Record<string, any> }) {
+  try {
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u.user?.id;
+    if (!uid) return;
+    const label = u.user?.user_metadata?.name || u.user?.email || null;
+    await supabase.from("activity_logs" as any).insert({
+      user_id: uid,
+      user_label: label,
+      action,
+      entity,
+      entity_id: opts?.entityId ?? null,
+      description: opts?.description ?? null,
+      metadata: opts?.metadata ?? null,
+    });
+  } catch (e) {
+    console.warn("logActivity", e);
+  }
+}
+
 export type Cliente = {
   id: string;
   nombre: string;
