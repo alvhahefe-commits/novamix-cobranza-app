@@ -152,15 +152,17 @@ function Inventario() {
                     <button onClick={() => setMover(p)} className="bg-brand-black text-white py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
                       <TrendingUp className="h-3.5 w-3.5" /> Movimiento
                     </button>
-                    <button onClick={() => setEditar(p)} className="bg-muted py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
+                    <button
+                      disabled={!role.canEditInventory}
+                      onClick={() => setEditar(p)}
+                      className="bg-muted py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-40"
+                    >
                       <Pencil className="h-3.5 w-3.5" /> Editar
                     </button>
                     <button
-                      onClick={() => {
-                        if (!confirm(`¿Eliminar "${p.nombre}"?`)) return;
-                        api.deleteProducto(p.id).then(() => toast.success("Producto eliminado")).catch((e) => toast.error(e.message));
-                      }}
-                      className="bg-muted text-primary py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                      disabled={!role.canDelete}
+                      onClick={() => setBorrar(p)}
+                      className="bg-muted text-primary py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-40"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Borrar
                     </button>
