@@ -279,8 +279,30 @@ export async function uploadReceiptPhoto(file: File): Promise<string | null> {
     console.error("upload", error);
     return null;
   }
-  const { data } = supabase.storage.from("receipts").getPublicUrl(path);
-  return data.publicUrl;
+  // Bucket is private — store the storage path. Components resolve to a
+  // short-lived signed URL on demand via getSignedReceiptUrl().
+  return path;
+}
+
+// Resolve a stored value (new path or legacy public URL) to a usable URL.
+// For private bucket paths, returns a short-lived signed URL.
+export async function getSignedReceiptUrl(pathOrUrl: string, expiresIn = 3600): Promise<string | null> {
+  if (!pathOrUrl) return null;
+  let path = pathOrUrl;
+  // Legacy values stored full public URLs; extract the object path.
+  const marker = "/receipts/";
+  const idx = pathOrUrl.indexOf(marker);
+  if (pathOrUrl.startsWith("http") && idx !== -1) {
+    path = pathOrUrl.slice(idx + marker.length);
+  } else if (pathOrUrl.startsWith("http")) {
+    return pathOrUrl;
+  }
+  const { data, error } = await supabase.storage.from("receipts").createSignedUrl(path, expiresIn);
+  if (error) {
+    console.warn("signed url", error);
+    return null;
+  }
+  return data.signedUrl;
 }
 
 // ---------- Offline queue ----------
