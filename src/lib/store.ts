@@ -651,8 +651,10 @@ export function useApi() {
       invalidate("clientes");
     },
     async deleteCliente(id: string) {
+      const cli = (await supabase.from("customers").select("full_name").eq("id", id).maybeSingle()).data as any;
       const { error } = await supabase.from("customers").delete().eq("id", id);
       if (error) throw error;
+      await logActivity("eliminar", "cliente", { entityId: id, description: `Eliminó cliente ${cli?.full_name ?? id}` });
       invalidate("clientes");
       invalidate("pagos");
       invalidate("entregas");
