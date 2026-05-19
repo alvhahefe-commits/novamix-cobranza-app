@@ -460,7 +460,7 @@ export function useRealtimeSync() {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel(`novamix-${userId}`)
+      .channel(`novamix-${userId}`, { config: { private: true } })
       .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, () => qc.invalidateQueries({ queryKey: ["clientes"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => qc.invalidateQueries({ queryKey: ["pagos"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "deliveries" }, () => qc.invalidateQueries({ queryKey: ["entregas"] }))
