@@ -623,6 +623,7 @@ export function useApi() {
         .single();
       if (error) throw error;
       invalidate("clientes");
+      await logActivity("crear", "cliente", { entityId: data.id, description: `Nuevo cliente: ${c.nombre}` });
       return mapCliente(data);
     },
     async updateCliente(id: string, c: ClienteInput) {
@@ -649,6 +650,7 @@ export function useApi() {
         .eq("id", id);
       if (error) throw error;
       invalidate("clientes");
+      await logActivity("editar", "cliente", { entityId: id, description: `Editó cliente ${c.nombre}` });
     },
     async deleteCliente(id: string) {
       const cli = (await supabase.from("customers").select("full_name").eq("id", id).maybeSingle()).data as any;
@@ -684,6 +686,7 @@ export function useApi() {
         .single();
       if (error) throw error;
       invalidate("pagos");
+      await logActivity("crear", "pago", { entityId: data.id, description: `Registró pago de ${p.monto}`, metadata: { monto: p.monto, metodo: p.metodo } });
       return mapPago(data);
     },
     async addEntrega(e: EntregaInput) {
@@ -725,6 +728,7 @@ export function useApi() {
         .single();
       if (error) throw error;
       invalidate("entregas");
+      await logActivity("crear", "entrega", { entityId: data.id, description: `Registró venta: ${e.producto} x${e.cantidad}`, metadata: { monto: e.monto } });
       return mapEntrega(data);
     },
     async updateEntregaEstado(id: string, estado: Entrega["estado"]) {
