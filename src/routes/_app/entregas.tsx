@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useDB, fmtMoney, fmtDate, useApi, uploadReceiptPhoto, type Entrega } from "@/lib/store";
 import { Plus, X, Truck, Check, Clock, Camera } from "lucide-react";
 import { PhotoPicker, ImageViewer } from "@/components/PhotoPicker";
+import { SignedImage } from "@/components/SignedImage";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/entregas")({
@@ -71,7 +72,7 @@ function EntregasScreen() {
                   onClick={() => setVerFoto(e.foto!)}
                   className="mt-3 block w-full h-32 rounded-lg overflow-hidden border border-border"
                 >
-                  <img src={e.foto} alt="Entrega" className="w-full h-full object-cover" />
+                  <SignedImage path={e.foto} alt="Entrega" className="w-full h-full object-cover" />
                 </button>
               )}
               {e.estado !== "Entregado" && (
