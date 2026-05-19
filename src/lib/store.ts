@@ -785,8 +785,10 @@ export function useApi() {
       invalidate("productos");
     },
     async deleteProducto(id: string) {
+      const prod = (await supabase.from("products").select("name").eq("id", id).maybeSingle()).data as any;
       const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
+      await logActivity("eliminar", "producto", { entityId: id, description: `Eliminó producto ${prod?.name ?? id}` });
       invalidate("productos");
     },
     async ajustarStock(productoId: string, tipo: "entrada" | "salida" | "ajuste" | "venta", cantidad: number, opts?: { referencia?: string; notas?: string }) {
