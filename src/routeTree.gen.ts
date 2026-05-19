@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppUsuariosRouteImport } from './routes/_app/usuarios'
 import { Route as AppReportesRouteImport } from './routes/_app/reportes'
 import { Route as AppMorososRouteImport } from './routes/_app/morosos'
 import { Route as AppInventarioRouteImport } from './routes/_app/inventario'
@@ -31,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppUsuariosRoute = AppUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppReportesRoute = AppReportesRouteImport.update({
   id: '/reportes',
@@ -97,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/inventario': typeof AppInventarioRoute
   '/morosos': typeof AppMorososRoute
   '/reportes': typeof AppReportesRoute
+  '/usuarios': typeof AppUsuariosRoute
   '/clientes/$id': typeof AppClientesIdRoute
   '/pago/$clienteId': typeof AppPagoClienteIdRoute
   '/recibo/$pagoId': typeof AppReciboPagoIdRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/inventario': typeof AppInventarioRoute
   '/morosos': typeof AppMorososRoute
   '/reportes': typeof AppReportesRoute
+  '/usuarios': typeof AppUsuariosRoute
   '/clientes/$id': typeof AppClientesIdRoute
   '/pago/$clienteId': typeof AppPagoClienteIdRoute
   '/recibo/$pagoId': typeof AppReciboPagoIdRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/_app/inventario': typeof AppInventarioRoute
   '/_app/morosos': typeof AppMorososRoute
   '/_app/reportes': typeof AppReportesRoute
+  '/_app/usuarios': typeof AppUsuariosRoute
   '/_app/clientes/$id': typeof AppClientesIdRoute
   '/_app/pago/$clienteId': typeof AppPagoClienteIdRoute
   '/_app/recibo/$pagoId': typeof AppReciboPagoIdRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/morosos'
     | '/reportes'
+    | '/usuarios'
     | '/clientes/$id'
     | '/pago/$clienteId'
     | '/recibo/$pagoId'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/morosos'
     | '/reportes'
+    | '/usuarios'
     | '/clientes/$id'
     | '/pago/$clienteId'
     | '/recibo/$pagoId'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_app/inventario'
     | '/_app/morosos'
     | '/_app/reportes'
+    | '/_app/usuarios'
     | '/_app/clientes/$id'
     | '/_app/pago/$clienteId'
     | '/_app/recibo/$pagoId'
@@ -196,6 +208,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/usuarios': {
+      id: '/_app/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof AppUsuariosRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/reportes': {
       id: '/_app/reportes'
@@ -299,6 +318,7 @@ interface AppRouteChildren {
   AppInventarioRoute: typeof AppInventarioRoute
   AppMorososRoute: typeof AppMorososRoute
   AppReportesRoute: typeof AppReportesRoute
+  AppUsuariosRoute: typeof AppUsuariosRoute
   AppPagoClienteIdRoute: typeof AppPagoClienteIdRoute
   AppReciboPagoIdRoute: typeof AppReciboPagoIdRoute
 }
@@ -311,6 +331,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppInventarioRoute: AppInventarioRoute,
   AppMorososRoute: AppMorososRoute,
   AppReportesRoute: AppReportesRoute,
+  AppUsuariosRoute: AppUsuariosRoute,
   AppPagoClienteIdRoute: AppPagoClienteIdRoute,
   AppReciboPagoIdRoute: AppReciboPagoIdRoute,
 }
