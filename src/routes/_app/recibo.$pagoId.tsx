@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useDB, fmtMoney, fmtDate, totalDeudaCliente } from "@/lib/store";
 import { ArrowLeft, Share2, Check } from "lucide-react";
+import { SignedImage } from "@/components/SignedImage";
 
 export const Route = createFileRoute("/_app/recibo/$pagoId")({
   component: ReciboScreen,
