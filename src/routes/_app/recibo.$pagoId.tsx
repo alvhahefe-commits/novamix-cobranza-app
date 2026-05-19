@@ -66,7 +66,7 @@ function ReciboScreen() {
             {pago.reciboFoto && (
               <div className="border-t border-border pt-4">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Foto del recibo</p>
-                <img src={pago.reciboFoto} alt="Recibo" className="w-full rounded-xl" />
+                <SignedImage path={pago.reciboFoto} alt="Recibo" className="w-full rounded-xl" />
               </div>
             )}
           </div>
