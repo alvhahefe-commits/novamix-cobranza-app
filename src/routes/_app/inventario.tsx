@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useDB, useApi, fmtMoney, fmtDate, type Producto } from "@/lib/store";
+import { useDB, useApi, useUserRole, fmtMoney, fmtDate, type Producto } from "@/lib/store";
 import { Package, Plus, AlertTriangle, TrendingUp, TrendingDown, X, Pencil, Trash2, History, Download } from "lucide-react";
 import { toast } from "sonner";
 import { exportExcel, exportPDF } from "@/lib/exports";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_app/inventario")({
   component: Inventario,
@@ -12,10 +13,12 @@ export const Route = createFileRoute("/_app/inventario")({
 function Inventario() {
   const db = useDB();
   const api = useApi();
+  const role = useUserRole();
   const [tab, setTab] = useState<"productos" | "movimientos">("productos");
   const [openNuevo, setOpenNuevo] = useState(false);
   const [editar, setEditar] = useState<Producto | null>(null);
   const [mover, setMover] = useState<Producto | null>(null);
+  const [borrar, setBorrar] = useState<Producto | null>(null);
   const [q, setQ] = useState("");
 
   const productosFiltrados = useMemo(() => {
@@ -149,15 +152,17 @@ function Inventario() {
                     <button onClick={() => setMover(p)} className="bg-brand-black text-white py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
                       <TrendingUp className="h-3.5 w-3.5" /> Movimiento
                     </button>
-                    <button onClick={() => setEditar(p)} className="bg-muted py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
+                    <button
+                      disabled={!role.canEditInventory}
+                      onClick={() => setEditar(p)}
+                      className="bg-muted py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-40"
+                    >
                       <Pencil className="h-3.5 w-3.5" /> Editar
                     </button>
                     <button
-                      onClick={() => {
-                        if (!confirm(`¿Eliminar "${p.nombre}"?`)) return;
-                        api.deleteProducto(p.id).then(() => toast.success("Producto eliminado")).catch((e) => toast.error(e.message));
-                      }}
-                      className="bg-muted text-primary py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                      disabled={!role.canDelete}
+                      onClick={() => setBorrar(p)}
+                      className="bg-muted text-primary py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-40"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Borrar
                     </button>
@@ -204,6 +209,22 @@ function Inventario() {
       {openNuevo && <ProductoModal onClose={() => setOpenNuevo(false)} />}
       {editar && <ProductoModal producto={editar} onClose={() => setEditar(null)} />}
       {mover && <MovimientoModal producto={mover} onClose={() => setMover(null)} />}
+      <ConfirmDialog
+        open={!!borrar}
+        title={borrar ? `¿Eliminar "${borrar.nombre}"?` : ""}
+        description="El producto y su historial de stock se borrarán permanentemente."
+        requireText="ELIMINAR"
+        onConfirm={async () => {
+          if (!borrar) return;
+          try {
+            await api.deleteProducto(borrar.id);
+            toast.success("Producto eliminado");
+          } catch (e: any) {
+            toast.error(e?.message ?? "Error al eliminar");
+          }
+        }}
+        onClose={() => setBorrar(null)}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, useApi, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate, CUSTOMER_TYPES, type CustomerType, type Cliente } from "@/lib/store";
+import { useDB, useApi, useUserRole, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate, CUSTOMER_TYPES, type CustomerType, type Cliente } from "@/lib/store";
 import { ArrowLeft, MessageCircle, Phone, MapPin, DollarSign, Plus, FileText, Pencil, ShoppingCart, X, Truck, Receipt, Trash2 } from "lucide-react";
 import { ImageViewer } from "@/components/PhotoPicker";
 import { SignedImage } from "@/components/SignedImage";
@@ -14,6 +14,7 @@ function ClienteDetalle() {
   const { id } = Route.useParams();
   const db = useDB();
   const api = useApi();
+  const role = useUserRole();
   const navigate = useNavigate();
   const cliente = db.clientes.find((c) => c.id === id);
   const [verRecibo, setVerRecibo] = useState<string | null>(null);
@@ -215,14 +216,16 @@ function ClienteDetalle() {
         </section>
       </div>
 
-      <div className="px-5 pb-6">
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="w-full text-xs text-muted-foreground py-3 flex items-center justify-center gap-2 active:text-primary"
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Eliminar cliente
-        </button>
-      </div>
+      {role.canDelete && (
+        <div className="px-5 pb-6">
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="w-full text-xs text-muted-foreground py-3 flex items-center justify-center gap-2 active:text-primary"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Eliminar cliente
+          </button>
+        </div>
+      )}
 
       {verRecibo && <ImageViewer src={verRecibo} onClose={() => setVerRecibo(null)} />}
 

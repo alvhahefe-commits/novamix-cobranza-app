@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          description: string | null
+          entity: string
+          entity_id: string | null
+          id: string
+          metadata: Json | null
+          user_id: string
+          user_label: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          description?: string | null
+          entity: string
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id: string
+          user_label?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          description?: string | null
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+          user_label?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           additional_info: string | null
@@ -21,6 +57,7 @@ export type Database = {
           business_notes: string | null
           ci: string | null
           created_at: string
+          created_by: string | null
           customer_type: string | null
           full_name: string
           id: string
@@ -28,6 +65,8 @@ export type Database = {
           notes: string | null
           phone: string
           phone_secondary: string | null
+          updated_at: string
+          updated_by: string | null
           user_id: string
         }
         Insert: {
@@ -36,6 +75,7 @@ export type Database = {
           business_notes?: string | null
           ci?: string | null
           created_at?: string
+          created_by?: string | null
           customer_type?: string | null
           full_name: string
           id?: string
@@ -43,6 +83,8 @@ export type Database = {
           notes?: string | null
           phone?: string
           phone_secondary?: string | null
+          updated_at?: string
+          updated_by?: string | null
           user_id: string
         }
         Update: {
@@ -51,6 +93,7 @@ export type Database = {
           business_notes?: string | null
           ci?: string | null
           created_at?: string
+          created_by?: string | null
           customer_type?: string | null
           full_name?: string
           id?: string
@@ -58,6 +101,8 @@ export type Database = {
           notes?: string | null
           phone?: string
           phone_secondary?: string | null
+          updated_at?: string
+          updated_by?: string | null
           user_id?: string
         }
         Relationships: []
@@ -112,6 +157,7 @@ export type Database = {
       deliveries: {
         Row: {
           created_at: string
+          created_by: string | null
           customer_id: string
           delivery_date: string
           delivery_photo_url: string | null
@@ -123,10 +169,13 @@ export type Database = {
           quantity: number
           status: Database["public"]["Enums"]["delivery_status"]
           total_amount: number
+          updated_at: string
+          updated_by: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           customer_id: string
           delivery_date?: string
           delivery_photo_url?: string | null
@@ -138,10 +187,13 @@ export type Database = {
           quantity?: number
           status?: Database["public"]["Enums"]["delivery_status"]
           total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           customer_id?: string
           delivery_date?: string
           delivery_photo_url?: string | null
@@ -153,6 +205,8 @@ export type Database = {
           quantity?: number
           status?: Database["public"]["Enums"]["delivery_status"]
           total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
           user_id?: string
         }
         Relationships: [
@@ -169,6 +223,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          created_by: string | null
           customer_id: string
           id: string
           method: Database["public"]["Enums"]["payment_method"]
@@ -180,6 +235,7 @@ export type Database = {
         Insert: {
           amount?: number
           created_at?: string
+          created_by?: string | null
           customer_id: string
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
@@ -191,6 +247,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          created_by?: string | null
           customer_id?: string
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
@@ -213,34 +270,40 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string
+          created_by: string | null
           id: string
           min_stock: number
           name: string
           price: number
           stock: number
           updated_at: string
+          updated_by: string | null
           user_id: string
         }
         Insert: {
           category?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           min_stock?: number
           name: string
           price?: number
           stock?: number
           updated_at?: string
+          updated_by?: string | null
           user_id: string
         }
         Update: {
           category?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
           min_stock?: number
           name?: string
           price?: number
           stock?: number
           updated_at?: string
+          updated_by?: string | null
           user_id?: string
         }
         Relationships: []
@@ -284,14 +347,46 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "Administrador" | "Vendedor" | "Chofer"
       debt_status: "Pendiente" | "Parcial" | "Pagado" | "Vencido"
       delivery_status: "Pendiente" | "En camino" | "Entregado"
       payment_method:
@@ -429,6 +524,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["Administrador", "Vendedor", "Chofer"],
       debt_status: ["Pendiente", "Parcial", "Pagado", "Vencido"],
       delivery_status: ["Pendiente", "En camino", "Entregado"],
       payment_method: [

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useDB, fmtMoney, totalDeudaCliente, tieneVencido } from "@/lib/store";
-import { AlertTriangle, DollarSign, Truck, Users, BarChart3, ArrowRight, Package } from "lucide-react";
+import { useDB, useUserRole, fmtMoney, totalDeudaCliente, tieneVencido } from "@/lib/store";
+import { AlertTriangle, DollarSign, Truck, Users, BarChart3, ArrowRight, Package, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -8,6 +8,7 @@ export const Route = createFileRoute("/_app/dashboard")({
 
 function Dashboard() {
   const db = useDB();
+  const role = useUserRole();
   const today = new Date();
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
@@ -27,9 +28,14 @@ function Dashboard() {
 
   return (
     <div className="px-5 py-5 space-y-5">
-      <div>
-        <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Resumen</p>
-        <h1 className="text-3xl font-extrabold tracking-tight">Inicio</h1>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Resumen</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Inicio</h1>
+        </div>
+        <span className="text-[10px] font-extrabold uppercase tracking-wider bg-primary/15 text-primary px-2.5 py-1.5 rounded-full">
+          {role.role}
+        </span>
       </div>
 
       <div className="bg-gradient-to-br from-primary to-brand-red-dark text-white rounded-2xl p-5 shadow-[var(--shadow-red)]">
@@ -65,6 +71,18 @@ function Dashboard() {
               </Link>
             );
           })}
+          {role.isAdmin && (
+            <Link
+              to="/usuarios"
+              className="bg-card border-2 border-border rounded-2xl p-5 flex flex-col gap-3 active:scale-[0.97] transition col-span-2"
+            >
+              <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center">
+                <ShieldCheck className="h-6 w-6 text-primary" />
+              </div>
+              <div className="font-extrabold text-lg">Usuarios y permisos</div>
+              <p className="text-xs text-muted-foreground -mt-1">Asignar roles y ver actividad reciente</p>
+            </Link>
+          )}
         </div>
       </div>
 
