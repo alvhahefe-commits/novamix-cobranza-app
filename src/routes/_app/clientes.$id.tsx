@@ -196,7 +196,7 @@ function ClienteDetalle() {
                         onClick={() => setVerRecibo(p.reciboFoto!)}
                         className="h-10 w-10 rounded-lg overflow-hidden border border-border"
                       >
-                        <img src={p.reciboFoto} alt="Recibo" className="h-full w-full object-cover" />
+                        <SignedImage path={p.reciboFoto} alt="Recibo" className="h-full w-full object-cover" />
                       </button>
                     )}
                     <Link
@@ -282,7 +282,7 @@ function RecibosModal({
                 onClick={() => onSelect(p.reciboFoto!)}
                 className="rounded-xl overflow-hidden border border-border bg-muted active:scale-95 transition"
               >
-                <img src={p.reciboFoto} alt="Recibo" className="w-full h-32 object-cover" />
+                <SignedImage path={p.reciboFoto} alt="Recibo" className="w-full h-32 object-cover" />
                 <div className="p-2 text-left">
                   <p className="text-xs font-bold text-green-700">{fmtMoney(p.monto)}</p>
                   <p className="text-[10px] text-muted-foreground">{fmtDate(p.fecha)}</p>
