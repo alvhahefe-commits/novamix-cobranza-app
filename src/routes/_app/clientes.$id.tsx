@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useDB, useApi, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate, CUSTOMER_TYPES, type CustomerType, type Cliente } from "@/lib/store";
 import { ArrowLeft, MessageCircle, Phone, MapPin, DollarSign, Plus, FileText, Pencil, ShoppingCart, X, Truck, Receipt, Trash2 } from "lucide-react";
 import { ImageViewer } from "@/components/PhotoPicker";
+import { SignedImage } from "@/components/SignedImage";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/clientes/$id")({
