@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useDB, useApi, fmtMoney, fmtDate, type Producto } from "@/lib/store";
+import { useDB, useApi, useUserRole, fmtMoney, fmtDate, type Producto } from "@/lib/store";
 import { Package, Plus, AlertTriangle, TrendingUp, TrendingDown, X, Pencil, Trash2, History, Download } from "lucide-react";
 import { toast } from "sonner";
 import { exportExcel, exportPDF } from "@/lib/exports";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_app/inventario")({
   component: Inventario,
@@ -12,10 +13,12 @@ export const Route = createFileRoute("/_app/inventario")({
 function Inventario() {
   const db = useDB();
   const api = useApi();
+  const role = useUserRole();
   const [tab, setTab] = useState<"productos" | "movimientos">("productos");
   const [openNuevo, setOpenNuevo] = useState(false);
   const [editar, setEditar] = useState<Producto | null>(null);
   const [mover, setMover] = useState<Producto | null>(null);
+  const [borrar, setBorrar] = useState<Producto | null>(null);
   const [q, setQ] = useState("");
 
   const productosFiltrados = useMemo(() => {
