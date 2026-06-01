@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
 import { useDB, fmtMoney, totalDeudaCliente, tieneVencido, fmtDate } from "@/lib/store";
 import { exportExcel, exportPDF } from "@/lib/exports";
 import { Download } from "lucide-react";
@@ -13,6 +14,48 @@ function Reportes() {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const startOfWeek = startOfDay - 6 * 86400000;
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const toDateInput = (t: number) => new Date(t).toISOString().slice(0, 10);
+  const [rangoIni, setRangoIni] = useState<string>(toDateInput(startOfMonth));
+  const [rangoFin, setRangoFin] = useState<string>(toDateInput(Date.now()));
+
+  const iniTs = useMemo(() => new Date(rangoIni + "T00:00:00").getTime(), [rangoIni]);
+  const finTs = useMemo(() => new Date(rangoFin + "T23:59:59").getTime(), [rangoFin]);
+
+  const entregasRango = db.entregas.filter((e) => e.fecha >= iniTs && e.fecha <= finTs);
+  const pagosRango = db.pagos.filter((p) => p.fecha >= iniTs && p.fecha <= finTs);
+  const bolsasRango = entregasRango.reduce((s, e) => s + (e.cantidad || 0), 0);
+  const ventasRango = entregasRango.reduce((s, e) => s + e.monto, 0);
+  const cobradoRango = pagosRango.reduce((s, p) => s + p.monto, 0);
+
+  const porCliente = db.clientes.map((c) => {
+    const ents = entregasRango.filter((e) => e.clienteId === c.id);
+    const pgs = pagosRango.filter((p) => p.clienteId === c.id);
+    return {
+      cliente: c,
+      bolsas: ents.reduce((s, e) => s + (e.cantidad || 0), 0),
+      ventas: ents.reduce((s, e) => s + e.monto, 0),
+      pagos: pgs.reduce((s, p) => s + p.monto, 0),
+      notas: ents.map((e) => e.notaNumero).filter(Boolean) as string[],
+    };
+  }).filter((x) => x.ventas > 0 || x.pagos > 0);
+
+  const porVendedor = (() => {
+    const map = new Map<string, { vendedorId: string; bolsas: number; ventas: number; pagos: number }>();
+    for (const e of entregasRango) {
+      const k = e.vendedorId ?? "—";
+      const cur = map.get(k) ?? { vendedorId: k, bolsas: 0, ventas: 0, pagos: 0 };
+      cur.bolsas += e.cantidad || 0;
+      cur.ventas += e.monto;
+      map.set(k, cur);
+    }
+    for (const p of pagosRango) {
+      const k = p.vendedorId ?? "—";
+      const cur = map.get(k) ?? { vendedorId: k, bolsas: 0, ventas: 0, pagos: 0 };
+      cur.pagos += p.monto;
+      map.set(k, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.ventas - a.ventas);
+  })();
 
   const cobradoHoy = db.pagos.filter((p) => p.fecha >= startOfDay).reduce((s, p) => s + p.monto, 0);
   const cobradoSem = db.pagos.filter((p) => p.fecha >= startOfWeek).reduce((s, p) => s + p.monto, 0);
@@ -43,6 +86,10 @@ function Reportes() {
   const exportar = (tipo: "pdf" | "xlsx") => {
     const headers = ["Métrica", "Valor"];
     const rows: (string | number)[][] = [
+      [`Rango ${rangoIni} → ${rangoFin}`, ""],
+      ["Bolsas vendidas (rango)", bolsasRango],
+      ["Ventas (rango)", fmtMoney(ventasRango)],
+      ["Cobrado (rango)", fmtMoney(cobradoRango)],
       ["Cobrado hoy", fmtMoney(cobradoHoy)],
       ["Cobrado semana", fmtMoney(cobradoSem)],
       ["Cobrado mes", fmtMoney(cobradoMes)],
@@ -54,6 +101,20 @@ function Reportes() {
       ["Nuevos clientes (mes)", nuevosClientesMes],
       ["Entregas confirmadas hoy", entregadasHoy],
     ];
+    rows.push(["", ""], ["Cliente", "Bolsas / Ventas / Pagos / Notas"]);
+    porCliente.forEach((x) => {
+      rows.push([
+        x.cliente.nombre,
+        `${x.bolsas} bolsas · ${fmtMoney(x.ventas)} · pagos ${fmtMoney(x.pagos)} · notas ${x.notas.join(", ") || "—"}`,
+      ]);
+    });
+    rows.push(["", ""], ["Vendedor", "Bolsas / Ventas / Pagos"]);
+    porVendedor.forEach((v) => {
+      rows.push([
+        v.vendedorId.slice(0, 8),
+        `${v.bolsas} bolsas · ${fmtMoney(v.ventas)} · pagos ${fmtMoney(v.pagos)}`,
+      ]);
+    });
     if (tipo === "pdf") exportPDF("Reporte general", headers, rows, "novamix-reporte");
     else exportExcel("Reporte", headers, rows, "novamix-reporte");
   };
@@ -74,6 +135,28 @@ function Reportes() {
           </button>
         </div>
       </div>
+
+      <section className="bg-card border border-border rounded-2xl p-4 space-y-3">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-extrabold">Rango de fechas</p>
+        <div className="grid grid-cols-2 gap-2">
+          <input type="date" value={rangoIni} onChange={(e) => setRangoIni(e.target.value)} className="bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
+          <input type="date" value={rangoFin} onChange={(e) => setRangoFin(e.target.value)} className="bg-muted border border-border rounded-xl px-3 py-2.5 text-sm" />
+        </div>
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <div className="bg-primary/10 rounded-xl p-3">
+            <p className="text-[10px] text-muted-foreground font-bold uppercase">Bolsas</p>
+            <p className="text-xl font-extrabold text-primary">{bolsasRango}</p>
+          </div>
+          <div className="bg-muted rounded-xl p-3">
+            <p className="text-[10px] text-muted-foreground font-bold uppercase">Ventas</p>
+            <p className="text-base font-extrabold">{fmtMoney(ventasRango)}</p>
+          </div>
+          <div className="bg-green-50 rounded-xl p-3">
+            <p className="text-[10px] text-green-700 font-bold uppercase">Cobrado</p>
+            <p className="text-base font-extrabold text-green-700">{fmtMoney(cobradoRango)}</p>
+          </div>
+        </div>
+      </section>
 
       <div className="bg-gradient-to-br from-primary to-brand-red-dark text-white rounded-2xl p-5 shadow-[var(--shadow-red)]">
         <p className="text-xs uppercase tracking-wider text-white/80 font-semibold">Cobrado hoy</p>
@@ -144,6 +227,53 @@ function Reportes() {
                   <p className="font-bold">{c.nombre}</p>
                 </div>
                 <p className="font-extrabold">{fmtMoney(compras)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="font-bold text-lg mb-2">Totales por cliente (rango)</h2>
+        {porCliente.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin movimientos en el rango</p>
+        ) : (
+          <div className="space-y-2">
+            {porCliente.sort((a, b) => b.ventas - a.ventas).map((x) => (
+              <div key={x.cliente.id} className="bg-card border border-border rounded-xl p-4">
+                <div className="flex justify-between items-start">
+                  <p className="font-bold">{x.cliente.nombre}</p>
+                  <p className="font-extrabold">{fmtMoney(x.ventas)}</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {x.bolsas} bolsas · Pagado {fmtMoney(x.pagos)}
+                </p>
+                {x.notas.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {x.notas.map((n, i) => (
+                      <span key={i} className="text-[10px] font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded">#{n}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="font-bold text-lg mb-2">Totales por vendedor (rango)</h2>
+        {porVendedor.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin movimientos</p>
+        ) : (
+          <div className="space-y-2">
+            {porVendedor.map((v) => (
+              <div key={v.vendedorId} className="bg-card border border-border rounded-xl p-4 flex justify-between">
+                <div>
+                  <p className="font-bold font-mono text-xs">{v.vendedorId === "—" ? "Sin vendedor" : v.vendedorId.slice(0, 8) + "..."}</p>
+                  <p className="text-xs text-muted-foreground">{v.bolsas} bolsas · pagos {fmtMoney(v.pagos)}</p>
+                </div>
+                <p className="font-extrabold">{fmtMoney(v.ventas)}</p>
               </div>
             ))}
           </div>
