@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, totalDeudaCliente, fmtMoney, useApi, uploadReceiptPhoto, METODOS_PAGO, type MetodoPago } from "@/lib/store";
+import { useDB, totalDeudaCliente, fmtMoney, useApi, uploadReceiptPhoto, METODOS_PAGO, entregasConEstadoPago, type MetodoPago } from "@/lib/store";
 import { ArrowLeft } from "lucide-react";
 import { PhotoPicker } from "@/components/PhotoPicker";
 import { toast } from "sonner";
@@ -22,10 +22,12 @@ function PagoScreen() {
   const [foto, setFoto] = useState<string | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [entregaId, setEntregaId] = useState<string>("");
 
   if (!cliente) return <div className="p-5">Cliente no encontrado</div>;
 
   const deudaActual = totalDeudaCliente(db, cliente.id);
+  const pendientes = entregasConEstadoPago(db, cliente.id).filter((x) => x.pendiente > 0);
   const montoNum = parseFloat(monto) || 0;
   const restante = Math.max(0, deudaActual - montoNum);
 
@@ -49,6 +51,7 @@ function PagoScreen() {
         nota: nota || undefined,
         reciboFoto: reciboUrl,
         fecha: new Date(fecha).getTime(),
+        entregaId: entregaId || undefined,
       });
       toast.success("Pago registrado");
       navigate({ to: "/recibo/$pagoId", params: { pagoId: pago.id } });
@@ -130,6 +133,24 @@ function PagoScreen() {
             setFotoFile(file);
           }}
         />
+
+        {pendientes.length > 0 && (
+          <div>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Asignar a nota de entrega (opcional)</label>
+            <select
+              value={entregaId}
+              onChange={(e) => setEntregaId(e.target.value)}
+              className="mt-2 w-full bg-card border-2 border-border rounded-xl px-4 py-4 text-base font-semibold focus:outline-none focus:border-primary"
+            >
+              <option value="">Distribuir automáticamente (FIFO)</option>
+              {pendientes.map((x) => (
+                <option key={x.entrega.id} value={x.entrega.id}>
+                  Nota #{x.entrega.notaNumero ?? x.entrega.id.slice(-5).toUpperCase()} — Resta {fmtMoney(x.pendiente)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Nota (opcional)</label>
