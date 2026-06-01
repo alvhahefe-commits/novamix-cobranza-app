@@ -17,6 +17,7 @@ function ReciboScreen() {
   if (!pago || !cliente) return <div className="p-5">Recibo no encontrado</div>;
 
   const saldo = totalDeudaCliente(db, cliente.id);
+  const entrega = pago.entregaId ? db.entregas.find((e) => e.id === pago.entregaId) : undefined;
 
   const compartir = async () => {
     const txt = `RECIBO NOVAMIX\n#${pago.id.slice(-6).toUpperCase()}\n\nCliente: ${cliente.nombre}\nMonto: ${fmtMoney(pago.monto)}\nMétodo: ${pago.metodo}\nFecha: ${fmtDate(pago.fecha)}\nSaldo restante: ${fmtMoney(saldo)}\n\n¡Gracias por su pago!`;
@@ -57,6 +58,7 @@ function ReciboScreen() {
 
             <div className="border-t border-dashed border-border pt-4 space-y-2 text-sm">
               <Row label="N° de recibo" value={"#" + pago.id.slice(-6).toUpperCase()} />
+              {entrega?.notaNumero && <Row label="Nota de entrega" value={"#" + entrega.notaNumero} />}
               <Row label="Cliente" value={cliente.nombre} />
               <Row label="Método" value={pago.metodo} />
               <Row label="Fecha" value={fmtDate(pago.fecha)} />
