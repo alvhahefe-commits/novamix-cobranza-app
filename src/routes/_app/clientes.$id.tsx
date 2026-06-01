@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useDB, useApi, useUserRole, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate, CUSTOMER_TYPES, type CustomerType, type Cliente } from "@/lib/store";
+import { useDB, useApi, useUserRole, totalDeudaCliente, tieneVencido, fmtMoney, fmtDate, CUSTOMER_TYPES, entregasConEstadoPago, type CustomerType, type Cliente } from "@/lib/store";
 import { ArrowLeft, MessageCircle, Phone, MapPin, DollarSign, Plus, FileText, Pencil, ShoppingCart, X, Truck, Receipt, Trash2 } from "lucide-react";
 import { ImageViewer } from "@/components/PhotoPicker";
 import { SignedImage } from "@/components/SignedImage";
@@ -36,7 +36,10 @@ function ClienteDetalle() {
   const deuda = totalDeudaCliente(db, cliente.id);
   const vencido = tieneVencido(db, cliente.id);
   const pagos = db.pagos.filter((p) => p.clienteId === cliente.id).sort((a, b) => b.fecha - a.fecha);
-  const entregas = db.entregas.filter((e) => e.clienteId === cliente.id).sort((a, b) => b.fecha - a.fecha);
+  const entregasEstado = entregasConEstadoPago(db, cliente.id).sort((a, b) => b.entrega.fecha - a.entrega.fecha);
+  const entregas = entregasEstado.map((x) => x.entrega);
+  const notasPendientes = entregasEstado.filter((x) => x.estado !== "Pagada");
+  const notasPagadas = entregasEstado.filter((x) => x.estado === "Pagada");
   const totalEntregas = entregas.reduce((s, e) => s + e.monto, 0);
   const totalPagado = pagos.reduce((s, p) => s + p.monto, 0);
   const recibosConFoto = pagos.filter((p) => p.reciboFoto);
@@ -141,7 +144,7 @@ function ClienteDetalle() {
       <div className="px-5 pb-6 space-y-5">
         <section>
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold text-lg">Entregas</h2>
+            <h2 className="font-bold text-lg">Notas de entrega</h2>
             <Link
               to="/entregas"
               className="text-xs text-primary font-semibold flex items-center gap-1"
@@ -149,27 +152,64 @@ function ClienteDetalle() {
               <Plus className="h-3.5 w-3.5" /> Nueva
             </Link>
           </div>
-          {entregas.length === 0 ? (
+          {entregasEstado.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin entregas</p>
           ) : (
-            <div className="space-y-2">
-              {entregas.map((e) => {
-                const venc = e.fechaVencimiento && e.fechaVencimiento < Date.now() && deuda > 0;
+            <div className="space-y-3">
+              {notasPendientes.length > 0 && (
+                <div className="bg-primary/5 border border-primary/30 rounded-xl p-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wider text-primary mb-2">
+                    Notas pendientes ({notasPendientes.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {notasPendientes.map((x) => (
+                      <span key={x.entrega.id} className="text-[11px] font-bold bg-primary text-white px-2 py-0.5 rounded">
+                        #{x.entrega.notaNumero ?? x.entrega.id.slice(-5).toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {notasPagadas.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wider text-green-700 mb-2">
+                    Notas pagadas ({notasPagadas.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {notasPagadas.map((x) => (
+                      <span key={x.entrega.id} className="text-[11px] font-bold bg-green-600 text-white px-2 py-0.5 rounded">
+                        #{x.entrega.notaNumero ?? x.entrega.id.slice(-5).toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {entregasEstado.map((x) => {
+                const e = x.entrega;
+                const venc = e.fechaVencimiento && e.fechaVencimiento < Date.now() && x.pendiente > 0;
                 return (
                   <div key={e.id} className="bg-card border border-border rounded-xl p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold">{e.producto}</p>
-                        <p className="text-xs text-muted-foreground">Cant: {e.cantidad} • {fmtDate(e.fecha)}</p>
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {e.notaNumero && (
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider bg-primary/15 text-primary px-2 py-0.5 rounded-full">
+                              Nota #{e.notaNumero}
+                            </span>
+                          )}
+                          <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                            x.estado === "Pagada" ? "bg-green-100 text-green-700" :
+                            x.estado === "Parcial" ? "bg-amber-100 text-amber-700" :
+                            "bg-muted text-muted-foreground"
+                          }`}>{x.estado}</span>
+                        </div>
+                        <p className="font-bold mt-1">{e.producto}</p>
+                        <p className="text-xs text-muted-foreground">Cant: {e.cantidad} bolsas • {fmtDate(e.fecha)}</p>
                       </div>
                       <p className="font-extrabold">{fmtMoney(e.monto)}</p>
                     </div>
-                    <div className="mt-2 flex items-center gap-2 text-xs">
-                      <span className={`px-2 py-0.5 rounded-full font-semibold ${
-                        e.estado === "Entregado" ? "bg-green-100 text-green-700" :
-                        e.estado === "En camino" ? "bg-amber-100 text-amber-700" :
-                        "bg-muted text-muted-foreground"
-                      }`}>{e.estado}</span>
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Pagado {fmtMoney(x.pagado)} · Resta <span className={x.pendiente > 0 ? "font-bold text-primary" : "font-bold text-green-700"}>{fmtMoney(x.pendiente)}</span></span>
                       {venc && <span className="text-primary font-bold">VENCIDO</span>}
                     </div>
                   </div>

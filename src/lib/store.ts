@@ -92,6 +92,9 @@ export type Pago = {
   fecha: number;
   reciboFoto?: string;
   nota?: string;
+  entregaId?: string;
+  vendedorId?: string;
+  vendedor?: string;
 };
 
 export type Entrega = {
@@ -106,6 +109,8 @@ export type Entrega = {
   fechaPedido?: number;
   fechaPago?: number;
   foto?: string;
+  notaNumero?: string;
+  vendedorId?: string;
 };
 
 export type Producto = {
@@ -194,6 +199,8 @@ function mapPago(r: any): Pago {
     fecha: new Date(r.payment_date).getTime(),
     reciboFoto: r.receipt_photo_url ?? undefined,
     nota: r.notes ?? undefined,
+    entregaId: r.delivery_id ?? undefined,
+    vendedorId: r.created_by ?? r.user_id ?? undefined,
   };
 }
 function mapEntrega(r: any): Entrega {
@@ -209,6 +216,8 @@ function mapEntrega(r: any): Entrega {
     fechaPedido: r.order_date ? new Date(r.order_date).getTime() : undefined,
     fechaPago: r.payment_date ? new Date(r.payment_date).getTime() : undefined,
     foto: r.delivery_photo_url ?? undefined,
+    notaNumero: r.note_number ?? undefined,
+    vendedorId: r.created_by ?? r.user_id ?? undefined,
   };
 }
 function mapProducto(r: any): Producto {
@@ -391,6 +400,7 @@ type PagoInput = {
   reciboFoto?: string;
   nota?: string;
   fecha?: number;
+  entregaId?: string;
 };
 type EntregaInput = {
   clienteId: string;
@@ -402,6 +412,8 @@ type EntregaInput = {
   fecha?: number;
   fechaPedido?: number;
   fechaPago?: number;
+  notaNumero?: string;
+  foto?: string;
 };
 
 const QUEUE_KEY = "novamix.queue.v1";
@@ -471,6 +483,8 @@ async function execOp(op: PendingOp, userId: string): Promise<boolean> {
         receipt_photo_url: p.reciboFoto,
         notes: p.nota,
         payment_date: p.fecha ? new Date(p.fecha).toISOString() : new Date().toISOString(),
+        delivery_id: p.entregaId ?? null,
+        created_by: userId,
       });
       if (error) throw error;
     } else if (op.kind === "addEntrega") {
@@ -486,6 +500,9 @@ async function execOp(op: PendingOp, userId: string): Promise<boolean> {
         due_date: p.fechaVencimiento ? new Date(p.fechaVencimiento).toISOString() : null,
         order_date: p.fechaPedido ? new Date(p.fechaPedido).toISOString() : null,
         payment_date: p.fechaPago ? new Date(p.fechaPago).toISOString() : null,
+        note_number: p.notaNumero ?? null,
+        delivery_photo_url: p.foto ?? null,
+        created_by: userId,
       });
       if (error) throw error;
     }
@@ -681,6 +698,8 @@ export function useApi() {
           receipt_photo_url: p.reciboFoto,
           notes: p.nota,
           payment_date: p.fecha ? new Date(p.fecha).toISOString() : new Date().toISOString(),
+          delivery_id: p.entregaId ?? null,
+          created_by: uid,
         })
         .select()
         .single();
@@ -723,6 +742,9 @@ export function useApi() {
           due_date: e.fechaVencimiento ? new Date(e.fechaVencimiento).toISOString() : null,
           order_date: e.fechaPedido ? new Date(e.fechaPedido).toISOString() : null,
           payment_date: e.fechaPago ? new Date(e.fechaPago).toISOString() : null,
+          note_number: e.notaNumero ?? null,
+          delivery_photo_url: e.foto ?? null,
+          created_by: uid,
         })
         .select()
         .single();
@@ -849,4 +871,58 @@ export function fmtMoney(n: number) {
 
 export function fmtDate(t: number) {
   return new Date(t).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+// Allocate payments to deliveries (FIFO by delivery date). Payments with an
+// explicit entregaId are pinned to that delivery first; remaining payments
+// flow into the oldest unpaid deliveries.
+export type EntregaEstadoPago = {
+  entrega: Entrega;
+  pagado: number;
+  pendiente: number;
+  estado: "Pagada" | "Parcial" | "Pendiente";
+};
+
+export function entregasConEstadoPago(db: DB, clienteId: string): EntregaEstadoPago[] {
+  const entregas = db.entregas
+    .filter((e) => e.clienteId === clienteId)
+    .sort((a, b) => a.fecha - b.fecha);
+  const pagos = db.pagos.filter((p) => p.clienteId === clienteId);
+  const allocated: Record<string, number> = {};
+  // Pinned payments first
+  for (const p of pagos) {
+    if (p.entregaId) {
+      allocated[p.entregaId] = (allocated[p.entregaId] ?? 0) + p.monto;
+    }
+  }
+  // Unpinned payments flow FIFO into oldest deliveries with remaining balance
+  let pool = pagos.filter((p) => !p.entregaId).reduce((s, p) => s + p.monto, 0);
+  const result: EntregaEstadoPago[] = entregas.map((e) => {
+    const pinned = allocated[e.id] ?? 0;
+    let pagado = Math.min(pinned, e.monto);
+    if (pool > 0 && pagado < e.monto) {
+      const need = e.monto - pagado;
+      const take = Math.min(pool, need);
+      pagado += take;
+      pool -= take;
+    }
+    const pendiente = Math.max(0, e.monto - pagado);
+    const estado = pendiente <= 0.0001 ? "Pagada" : pagado > 0 ? "Parcial" : "Pendiente";
+    return { entrega: e, pagado, pendiente, estado };
+  });
+  return result;
+}
+
+// ---------- Admin recovery ----------
+export async function claimAdminIfNone(): Promise<boolean> {
+  const { data, error } = await supabase.rpc("claim_admin_if_none" as any);
+  if (error) throw error;
+  return !!data;
+}
+
+export async function resetPasswordForEmail(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  if (error) throw error;
 }

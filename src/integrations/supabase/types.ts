@@ -163,6 +163,7 @@ export type Database = {
           delivery_photo_url: string | null
           due_date: string | null
           id: string
+          note_number: string | null
           order_date: string | null
           payment_date: string | null
           product: string
@@ -181,6 +182,7 @@ export type Database = {
           delivery_photo_url?: string | null
           due_date?: string | null
           id?: string
+          note_number?: string | null
           order_date?: string | null
           payment_date?: string | null
           product: string
@@ -199,6 +201,7 @@ export type Database = {
           delivery_photo_url?: string | null
           due_date?: string | null
           id?: string
+          note_number?: string | null
           order_date?: string | null
           payment_date?: string | null
           product?: string
@@ -225,6 +228,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string
+          delivery_id: string | null
           id: string
           method: Database["public"]["Enums"]["payment_method"]
           notes: string | null
@@ -237,6 +241,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id: string
+          delivery_id?: string | null
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
@@ -249,6 +254,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string
+          delivery_id?: string | null
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
@@ -373,6 +379,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_admin_if_none: { Args: never; Returns: boolean }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]

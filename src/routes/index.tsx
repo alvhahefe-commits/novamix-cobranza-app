@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useApi, useAuth } from "@/lib/store";
+import { useApi, useAuth, resetPasswordForEmail, claimAdminIfNone } from "@/lib/store";
 import { Lock, Mail, User } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -11,7 +11,7 @@ function Login() {
   const auth = useAuth();
   const api = useApi();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
@@ -27,7 +27,7 @@ function Login() {
     e.preventDefault();
     setErr("");
     setInfo("");
-    if (!email.trim() || !pass.trim()) {
+    if (!email.trim() || (mode !== "forgot" && !pass.trim())) {
       setErr("Ingresa correo y contraseña");
       return;
     }
@@ -35,15 +35,28 @@ function Login() {
     try {
       if (mode === "login") {
         await api.login(email.trim(), pass);
-      } else {
+      } else if (mode === "signup") {
         await api.signup(email.trim(), pass, name.trim() || undefined);
         setInfo("Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.");
+        setMode("login");
+      } else {
+        await resetPasswordForEmail(email.trim());
+        setInfo("Te enviamos un correo para restablecer tu contraseña.");
         setMode("login");
       }
     } catch (e: any) {
       setErr(e?.message || "Error de autenticación");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const recuperarAdmin = async () => {
+    try {
+      const ok = await claimAdminIfNone();
+      setInfo(ok ? "Acceso de administrador asignado. Inicia sesión nuevamente." : "Ya existe un administrador. Pídele que te asigne el rol.");
+    } catch (e: any) {
+      setErr(e?.message || "Inicia sesión primero para recuperar admin");
     }
   };
 
@@ -58,17 +71,17 @@ function Login() {
           <p className="text-white/60 mt-2 text-sm">Gestión de clientes y cobranza</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mb-5 bg-white/5 rounded-xl p-1">
-          {(["login", "signup"] as const).map((m) => (
+        <div className="grid grid-cols-3 gap-1 mb-5 bg-white/5 rounded-xl p-1">
+          {(["login", "signup", "forgot"] as const).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => { setMode(m); setErr(""); setInfo(""); }}
-              className={`py-2.5 rounded-lg text-sm font-bold transition ${
+              className={`py-2.5 rounded-lg text-xs font-bold transition ${
                 mode === m ? "bg-primary text-white" : "text-white/60"
               }`}
             >
-              {m === "login" ? "Iniciar sesión" : "Crear cuenta"}
+              {m === "login" ? "Entrar" : m === "signup" ? "Crear cuenta" : "Olvidé"}
             </button>
           ))}
         </div>
@@ -94,6 +107,7 @@ function Login() {
               autoComplete="email"
             />
           </Field>
+          {mode !== "forgot" && (
           <Field label="Contraseña" icon={<Lock className="h-5 w-5 text-white/40" />}>
             <input
               type="password"
@@ -104,6 +118,7 @@ function Login() {
               autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
           </Field>
+          )}
 
           {err && <p className="text-primary text-sm">{err}</p>}
           {info && <p className="text-green-400 text-sm">{info}</p>}
@@ -113,8 +128,13 @@ function Login() {
             disabled={loading}
             className="w-full bg-primary hover:bg-brand-red-dark text-white font-bold py-4 rounded-xl text-base shadow-[var(--shadow-red)] active:scale-[0.98] transition disabled:opacity-60"
           >
-            {loading ? "..." : mode === "login" ? "INICIAR SESIÓN" : "CREAR CUENTA"}
+            {loading ? "..." : mode === "login" ? "INICIAR SESIÓN" : mode === "signup" ? "CREAR CUENTA" : "ENVIAR CORREO"}
           </button>
+          {auth.user && (
+            <button type="button" onClick={recuperarAdmin} className="w-full text-xs text-white/60 underline py-2">
+              Recuperar acceso de administrador
+            </button>
+          )}
         </form>
       </div>
     </div>

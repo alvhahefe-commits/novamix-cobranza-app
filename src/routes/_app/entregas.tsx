@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useDB, fmtMoney, fmtDate, useApi, uploadReceiptPhoto, type Entrega } from "@/lib/store";
-import { Plus, X, Truck, Check, Clock, Camera } from "lucide-react";
+import { Plus, X, Truck, Check, Clock, Camera, Search } from "lucide-react";
 import { PhotoPicker, ImageViewer } from "@/components/PhotoPicker";
 import { SignedImage } from "@/components/SignedImage";
 import { toast } from "sonner";
@@ -24,9 +24,20 @@ function EntregasScreen() {
   const [open, setOpen] = useState(false);
   const [verFoto, setVerFoto] = useState<string | null>(null);
   const [fotoEntrega, setFotoEntrega] = useState<Entrega | null>(null);
+  const [search, setSearch] = useState("");
 
+  const q = search.trim().toLowerCase();
   const items = db.entregas
     .filter((e) => tab === "Todas" || e.estado === tab)
+    .filter((e) => {
+      if (!q) return true;
+      const cli = db.clientes.find((c) => c.id === e.clienteId);
+      return (
+        (e.notaNumero ?? "").toLowerCase().includes(q) ||
+        e.producto.toLowerCase().includes(q) ||
+        (cli?.nombre ?? "").toLowerCase().includes(q)
+      );
+    })
     .sort((a, b) => b.fecha - a.fecha);
 
   return (
@@ -50,6 +61,16 @@ function EntregasScreen() {
         ))}
       </div>
 
+      <div className="relative">
+        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por N° de nota, cliente o producto"
+          className="w-full bg-muted border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-primary"
+        />
+      </div>
+
       <div className="space-y-2">
         {items.map((e) => {
           const cliente = db.clientes.find((c) => c.id === e.clienteId);
@@ -57,7 +78,14 @@ function EntregasScreen() {
             <div key={e.id} className="bg-card border border-border rounded-xl p-4">
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0">
-                  <p className="font-bold truncate">{e.producto}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {e.notaNumero && (
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-primary/15 text-primary px-2 py-0.5 rounded-full">
+                        Nota {e.notaNumero}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-bold truncate mt-1">{e.producto}</p>
                   <p className="text-xs text-muted-foreground">{cliente?.nombre ?? "—"}</p>
                 </div>
                 <p className="font-extrabold flex-shrink-0">{fmtMoney(e.monto)}</p>
@@ -188,6 +216,10 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
   const [fechaPedido, setFechaPedido] = useState(today);
   const [fechaEntrega, setFechaEntrega] = useState(today);
   const [vence, setVence] = useState(in15);
+  const [notaNumero, setNotaNumero] = useState("");
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const onPickProducto = (id: string) => {
     setProductoId(id);
@@ -204,12 +236,22 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
     const m = parseFloat(monto);
     const qty = parseInt(cantidad) || 1;
     if (!clienteId || !producto.trim() || !m) return;
+    if (!notaNumero.trim()) {
+      toast.error("Ingresa el N° de nota de entrega");
+      return;
+    }
     const prod = productoId ? db.productos.find((x) => x.id === productoId) : null;
     if (prod && prod.stock < qty) {
       toast.error(`Stock insuficiente. Disponible: ${prod.stock}`);
       return;
     }
+    setSaving(true);
     try {
+      let fotoPath: string | undefined;
+      if (fotoFile) {
+        const url = await uploadReceiptPhoto(fotoFile);
+        fotoPath = url ?? undefined;
+      }
       await api.addEntrega({
         clienteId,
         producto: producto.trim(),
@@ -219,6 +261,8 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
         fecha: new Date(fechaEntrega).getTime(),
         fechaPedido: new Date(fechaPedido).getTime(),
         fechaVencimiento: vence ? new Date(vence).getTime() : undefined,
+        notaNumero: notaNumero.trim(),
+        foto: fotoPath,
       });
       if (prod) {
         try {
@@ -230,6 +274,8 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
       onClose();
     } catch (e: any) {
       toast.error(e?.message || "Error al guardar");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -241,6 +287,9 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center"><X className="h-5 w-5" /></button>
         </div>
         <form onSubmit={submit} className="space-y-3">
+          <Field label="N° de nota de entrega *">
+            <input value={notaNumero} onChange={(e) => setNotaNumero(e.target.value)} placeholder="Ej. 001234" className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary" />
+          </Field>
           <Field label="Cliente">
             <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary">
               {db.clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -278,7 +327,8 @@ function NuevaEntregaModal({ onClose }: { onClose: () => void }) {
           <Field label="Vence">
             <input type="date" value={vence} onChange={(e) => setVence(e.target.value)} className="w-full bg-muted border border-border rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary" />
           </Field>
-          <button type="submit" className="w-full bg-primary text-white font-bold py-4 rounded-xl mt-2 active:scale-[0.98] transition shadow-[var(--shadow-red)]">REGISTRAR ENTREGA</button>
+          <PhotoPicker label="Foto de nota de entrega (opcional)" value={fotoPreview} onChange={(p, f) => { setFotoPreview(p); setFotoFile(f); }} />
+          <button type="submit" disabled={saving} className="w-full bg-primary text-white font-bold py-4 rounded-xl mt-2 active:scale-[0.98] transition shadow-[var(--shadow-red)] disabled:opacity-50">{saving ? "GUARDANDO..." : "REGISTRAR ENTREGA"}</button>
         </form>
       </div>
     </div>
