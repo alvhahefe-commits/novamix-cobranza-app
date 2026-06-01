@@ -483,6 +483,8 @@ async function execOp(op: PendingOp, userId: string): Promise<boolean> {
         receipt_photo_url: p.reciboFoto,
         notes: p.nota,
         payment_date: p.fecha ? new Date(p.fecha).toISOString() : new Date().toISOString(),
+        delivery_id: p.entregaId ?? null,
+        created_by: userId,
       });
       if (error) throw error;
     } else if (op.kind === "addEntrega") {
@@ -498,6 +500,9 @@ async function execOp(op: PendingOp, userId: string): Promise<boolean> {
         due_date: p.fechaVencimiento ? new Date(p.fechaVencimiento).toISOString() : null,
         order_date: p.fechaPedido ? new Date(p.fechaPedido).toISOString() : null,
         payment_date: p.fechaPago ? new Date(p.fechaPago).toISOString() : null,
+        note_number: p.notaNumero ?? null,
+        delivery_photo_url: p.foto ?? null,
+        created_by: userId,
       });
       if (error) throw error;
     }
