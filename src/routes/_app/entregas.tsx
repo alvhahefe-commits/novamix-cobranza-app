@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useDB, fmtMoney, fmtDate, useApi, uploadReceiptPhoto, type Entrega } from "@/lib/store";
-import { Plus, X, Truck, Check, Clock, Camera } from "lucide-react";
+import { Plus, X, Truck, Check, Clock, Camera, Search } from "lucide-react";
 import { PhotoPicker, ImageViewer } from "@/components/PhotoPicker";
 import { SignedImage } from "@/components/SignedImage";
 import { toast } from "sonner";
@@ -24,9 +24,20 @@ function EntregasScreen() {
   const [open, setOpen] = useState(false);
   const [verFoto, setVerFoto] = useState<string | null>(null);
   const [fotoEntrega, setFotoEntrega] = useState<Entrega | null>(null);
+  const [search, setSearch] = useState("");
 
+  const q = search.trim().toLowerCase();
   const items = db.entregas
     .filter((e) => tab === "Todas" || e.estado === tab)
+    .filter((e) => {
+      if (!q) return true;
+      const cli = db.clientes.find((c) => c.id === e.clienteId);
+      return (
+        (e.notaNumero ?? "").toLowerCase().includes(q) ||
+        e.producto.toLowerCase().includes(q) ||
+        (cli?.nombre ?? "").toLowerCase().includes(q)
+      );
+    })
     .sort((a, b) => b.fecha - a.fecha);
 
   return (
@@ -50,6 +61,16 @@ function EntregasScreen() {
         ))}
       </div>
 
+      <div className="relative">
+        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por N° de nota, cliente o producto"
+          className="w-full bg-muted border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-primary"
+        />
+      </div>
+
       <div className="space-y-2">
         {items.map((e) => {
           const cliente = db.clientes.find((c) => c.id === e.clienteId);
@@ -57,7 +78,14 @@ function EntregasScreen() {
             <div key={e.id} className="bg-card border border-border rounded-xl p-4">
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0">
-                  <p className="font-bold truncate">{e.producto}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {e.notaNumero && (
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider bg-primary/15 text-primary px-2 py-0.5 rounded-full">
+                        Nota {e.notaNumero}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-bold truncate mt-1">{e.producto}</p>
                   <p className="text-xs text-muted-foreground">{cliente?.nombre ?? "—"}</p>
                 </div>
                 <p className="font-extrabold flex-shrink-0">{fmtMoney(e.monto)}</p>
