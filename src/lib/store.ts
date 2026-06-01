@@ -400,6 +400,7 @@ type PagoInput = {
   reciboFoto?: string;
   nota?: string;
   fecha?: number;
+  entregaId?: string;
 };
 type EntregaInput = {
   clienteId: string;
@@ -411,6 +412,8 @@ type EntregaInput = {
   fecha?: number;
   fechaPedido?: number;
   fechaPago?: number;
+  notaNumero?: string;
+  foto?: string;
 };
 
 const QUEUE_KEY = "novamix.queue.v1";
