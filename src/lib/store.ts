@@ -698,6 +698,8 @@ export function useApi() {
           receipt_photo_url: p.reciboFoto,
           notes: p.nota,
           payment_date: p.fecha ? new Date(p.fecha).toISOString() : new Date().toISOString(),
+          delivery_id: p.entregaId ?? null,
+          created_by: uid,
         })
         .select()
         .single();
@@ -740,6 +742,9 @@ export function useApi() {
           due_date: e.fechaVencimiento ? new Date(e.fechaVencimiento).toISOString() : null,
           order_date: e.fechaPedido ? new Date(e.fechaPedido).toISOString() : null,
           payment_date: e.fechaPago ? new Date(e.fechaPago).toISOString() : null,
+          note_number: e.notaNumero ?? null,
+          delivery_photo_url: e.foto ?? null,
+          created_by: uid,
         })
         .select()
         .single();
