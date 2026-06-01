@@ -92,6 +92,9 @@ export type Pago = {
   fecha: number;
   reciboFoto?: string;
   nota?: string;
+  entregaId?: string;
+  vendedorId?: string;
+  vendedor?: string;
 };
 
 export type Entrega = {
@@ -106,6 +109,8 @@ export type Entrega = {
   fechaPedido?: number;
   fechaPago?: number;
   foto?: string;
+  notaNumero?: string;
+  vendedorId?: string;
 };
 
 export type Producto = {
@@ -194,6 +199,8 @@ function mapPago(r: any): Pago {
     fecha: new Date(r.payment_date).getTime(),
     reciboFoto: r.receipt_photo_url ?? undefined,
     nota: r.notes ?? undefined,
+    entregaId: r.delivery_id ?? undefined,
+    vendedorId: r.created_by ?? r.user_id ?? undefined,
   };
 }
 function mapEntrega(r: any): Entrega {
@@ -209,6 +216,8 @@ function mapEntrega(r: any): Entrega {
     fechaPedido: r.order_date ? new Date(r.order_date).getTime() : undefined,
     fechaPago: r.payment_date ? new Date(r.payment_date).getTime() : undefined,
     foto: r.delivery_photo_url ?? undefined,
+    notaNumero: r.note_number ?? undefined,
+    vendedorId: r.created_by ?? r.user_id ?? undefined,
   };
 }
 function mapProducto(r: any): Producto {
